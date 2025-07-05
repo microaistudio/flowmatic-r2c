@@ -24,22 +24,22 @@ router.post('/ticket', async (req, res) => {
         // For Phase 1, we use default service (1) and prefix (A)
         const serviceId = req.body.service_id || 1;
         const prefix = config.defaultPrefix;
-        
+
         console.log(`📎 Issuing new ticket for service ${serviceId}`);
-        
+
         // Get today's date for daily reset check
         const today = new Date().toISOString().split('T')[0];
-        
+
         // Get the last ticket number for today
         const lastTicket = await db.getOne(`
-            SELECT number 
-            FROM tickets 
-            WHERE created_date = ? 
+            SELECT number
+            FROM tickets
+            WHERE date(issued_at) = date(?)
             AND number LIKE ?
-            ORDER BY id DESC 
+            ORDER BY id DESC
             LIMIT 1
         `, [today, prefix + '%']);
-        
+
         // Calculate next number
         let nextNumber = config.startNumber;
         if (lastTicket) {
@@ -47,24 +47,24 @@ router.post('/ticket', async (req, res) => {
             const currentNum = parseInt(lastTicket.number.substring(1));
             nextNumber = currentNum + 1;
         }
-        
+
         // Format ticket number with padding (A001, A002, etc.)
         const ticketNumber = prefix + nextNumber.toString().padStart(config.padding, '0');
-        
-        // Insert new ticket
+
+        // Insert new ticket with both issued_at and created_date
         const result = await db.run(`
-            INSERT INTO tickets (number, state, service_id, printed) 
-            VALUES (?, ?, ?, ?)
+            INSERT INTO tickets (number, state, service_id, printed, created_date)
+            VALUES (?, ?, ?, ?, date('now'))
         `, [ticketNumber, 'issued', serviceId, false]);
-        
+
         // Get the complete ticket record
         const ticket = await db.getOne(
             'SELECT * FROM tickets WHERE id = ?',
             [result.id]
         );
-        
+
         console.log(`✅ Issued ticket: ${ticketNumber}`);
-        
+
         // Return ticket info
         res.status(201).json({
             success: true,
@@ -78,7 +78,7 @@ router.post('/ticket', async (req, res) => {
             },
             message: `Ticket ${ticketNumber} issued successfully`
         });
-        
+
     } catch (error) {
         console.error('❌ Error issuing ticket:', error);
         res.status(500).json({
@@ -95,15 +95,15 @@ router.post('/ticket', async (req, res) => {
 router.get('/ticket/current', async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
-        
+
         const stats = await db.getOne(`
-            SELECT 
+            SELECT
                 COUNT(*) as total,
                 MAX(CAST(SUBSTR(number, 2) AS INTEGER)) as last_number
-            FROM tickets 
-            WHERE created_date = ?
+            FROM tickets
+            WHERE date(issued_at) = date(?)
         `, [today]);
-        
+
         res.json({
             success: true,
             date: today,
@@ -111,7 +111,7 @@ router.get('/ticket/current', async (req, res) => {
             last_number: stats.last_number || 0,
             next_number: (stats.last_number || 0) + 1
         });
-        
+
     } catch (error) {
         console.error('❌ Error getting ticket stats:', error);
         res.status(500).json({
@@ -130,19 +130,19 @@ router.get('/ticket/:id', async (req, res) => {
             'SELECT * FROM tickets WHERE id = ?',
             [req.params.id]
         );
-        
+
         if (!ticket) {
             return res.status(404).json({
                 success: false,
                 error: 'Ticket not found'
             });
         }
-        
+
         res.json({
             success: true,
             ticket
         });
-        
+
     } catch (error) {
         console.error('❌ Error getting ticket:', error);
         res.status(500).json({
