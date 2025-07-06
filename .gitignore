@@ -1,6 +1,5 @@
-# Create .gitignore file
-echo "node_modules/
+node_modules/
 .env
 data/*.db
 *.log
-.DS_Store" > .gitignore
+.DS_Store

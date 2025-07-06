@@ -1,0 +1,20 @@
+--- src/routes/ticket.js
++++ src/routes/ticket.js
+@@ -64,6 +64,17 @@
+ 
+         console.log(`✅ Issued ticket: ${ticketNumber}`);
+ 
++        // Auto-print ticket if enabled
++        if (process.env.AUTO_PRINT_TICKETS === 'true') {
++            try {
++                await printer.printTicket(ticket);
++                console.log(`🖨️  Auto-printed ticket: ${ticketNumber}`);
++            } catch (printError) {
++                console.error('❌ Auto-print failed:', printError.message);
++                // Don't fail the ticket creation if print fails
++            }
++        }
++
+         // Return ticket info
+         res.status(201).json({
+             success: true,

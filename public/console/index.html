@@ -1,0 +1,1194 @@
+<!-- FlowMatic-SOLO R2C - Debug Console -->
+<!-- File: /public/console/index.html -->
+<!-- Phase 2: Enhanced with queue operations -->
+<!-- Purpose: Test and monitor all system functions -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowMatic R2C - Debug Console</title>
+    <style>
+        /* Dark theme styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+        }
+
+        .console-header {
+            background: #2a2a2a;
+            padding: 20px;
+            border: 1px solid #00ff00;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .console-header h1 {
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .connection-status {
+            padding: 5px 15px;
+            background: #003300;
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #2a2a2a;
+            border: 1px solid #00ff00;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #003300;
+        }
+
+        .tab.active {
+            background: #00ff00;
+            color: #000;
+        }
+
+        .tab-content {
+            display: none;
+            background: #2a2a2a;
+            border: 1px solid #00ff00;
+            padding: 20px;
+            min-height: 400px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Queue Operations Specific Styles - ENHANCED */
+        .queue-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            gap: 20px;
+            height: calc(100vh - 300px);
+            max-height: 600px;
+        }
+
+        .queue-control {
+            background: #1a1a1a;
+            border: 1px solid #00ff00;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .queue-main {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .queue-viewer-section {
+            background: #1a1a1a;
+            border: 1px solid #00ff00;
+            padding: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .current-serving-section {
+            background: #1a1a1a;
+            border: 2px solid #00ff00;
+            padding: 15px;
+        }
+
+        .queue-section h3 {
+            margin-bottom: 15px;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+            font-size: 16px;
+        }
+
+        .operation-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .op-button {
+            padding: 10px 15px;
+            background: #003300;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .op-button:hover {
+            background: #00ff00;
+            color: #000;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .op-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .op-button small {
+            display: block;
+            font-size: 10px;
+            margin-top: 3px;
+            opacity: 0.8;
+        }
+
+        .service-selector {
+            margin-bottom: 10px;
+        }
+
+        .service-selector label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .service-selector select {
+            width: 100%;
+            padding: 8px;
+            background: #1a1a1a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: inherit;
+        }
+
+        .queue-viewer {
+            background: #000;
+            border: 1px solid #00ff00;
+            padding: 10px;
+            flex: 1;
+            overflow-y: auto;
+            font-size: 12px;
+            max-height: 300px;
+        }
+
+        .ticket-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            border: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ticket-item.waiting {
+            border-color: #ffff00;
+            color: #ffff00;
+        }
+
+        .ticket-item.called {
+            border-color: #00ffff;
+            color: #00ffff;
+        }
+
+        .ticket-item.serving {
+            border-color: #ff00ff;
+            color: #ff00ff;
+        }
+
+        .state-badge {
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .state-waiting { background: #333300; }
+        .state-called { background: #003333; }
+        .state-serving { background: #330033; }
+
+        /* Currently Serving Display - COMPACT */
+        .serving-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .serving-info {
+            text-align: center;
+            background: #000;
+            border: 1px solid #00ff00;
+            padding: 10px;
+        }
+
+        .serving-label {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .serving-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #current-ticket-number {
+            color: #00ff00;
+            font-size: 28px;
+        }
+
+        #current-wait-time {
+            color: #ffff00;
+        }
+
+        #current-trans-time {
+            color: #00ffff;
+        }
+
+        .counter-info {
+            text-align: center;
+            margin-top: 10px;
+            padding: 8px;
+            background: #000;
+            border: 1px solid #ff00ff;
+        }
+
+        /* Stats - COMPACT */
+        .stats-grid {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            flex: 1;
+            background: #000;
+            border: 1px solid #00ff00;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            margin-top: 3px;
+        }
+
+        /* Response Area - COMPACT */
+        .response-area {
+            background: #000;
+            border: 1px solid #00ff00;
+            padding: 10px;
+            height: 150px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        /* Other tab styles */
+        button {
+            padding: 10px 20px;
+            background: #003300;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            font-family: inherit;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+
+        input, textarea, select {
+            background: #000;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px;
+            font-family: inherit;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #00ff00;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #003300;
+        }
+
+        tr:hover {
+            background: #002200;
+        }
+
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffff00; }
+    </style>
+</head>
+<body>
+    <div class="console-header">
+        <h1>FlowMatic R2C - Debug Console</h1>
+        <div class="connection-status">
+            Server: <span id="server-status">Connected</span> | 
+            Time: <span id="server-time">--:--:--</span>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="tickets">Tickets</div>
+        <div class="tab" data-tab="queue">Queue Operations</div>
+        <div class="tab" data-tab="database">Database</div>
+        <div class="tab" data-tab="api">API Tester</div>
+        <div class="tab" data-tab="printer">Printer</div>
+    </div>
+
+    <!-- Tickets Tab -->
+    <div id="tickets-tab" class="tab-content active">
+        <h2>Ticket Management</h2>
+        <div style="margin-top: 20px;">
+            <h3>Issue New Ticket</h3>
+            <div class="service-selector">
+                <label>Service:</label>
+                <select id="issue-service">
+                    <option value="1">General Service (A)</option>
+                    <option value="2">Account Services (B)</option>
+                    <option value="3">VIP Services (V)</option>
+                    <option value="4">Technical Support (T)</option>
+                </select>
+            </div>
+            <button onclick="issueTicket()">Issue Ticket</button>
+            <button onclick="issueMultipleTickets()">Issue 5 Tickets</button>
+            <button onclick="resetAllQueues()" style="background: #660000; margin-left: 20px;">Reset All Queues</button>
+        </div>
+        <div style="margin-top: 20px;">
+            <h3>Recent Tickets 
+                <div style="float: right;">
+                    <label style="font-size: 12px; margin-right: 10px;">
+                        <input type="checkbox" id="show-ended" onchange="loadRecentTickets()" style="margin-right: 5px;">
+                        Show Ended
+                    </label>
+                    <button onclick="loadRecentTickets()" style="padding: 5px 10px; font-size: 12px;">Refresh</button>
+                </div>
+            </h3>
+            <div id="recent-tickets" style="max-height: 300px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Number</th>
+                            <th>Service</th>
+                            <th>State</th>
+                            <th>Issued At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tickets-tbody">
+                        <!-- Tickets will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue Operations Tab - REDESIGNED -->
+    <div id="queue-tab" class="tab-content">
+        <h2>Queue Operations</h2>
+        
+        <div class="queue-layout">
+            <!-- Left: Queue Control -->
+            <div class="queue-control">
+                <h3>Queue Control</h3>
+                <div class="service-selector">
+                    <label>Select Service:</label>
+                    <select id="queue-service">
+                        <option value="1">General Service (A)</option>
+                        <option value="2">Account Services (B)</option>
+                        <option value="3">VIP Services (V)</option>
+                        <option value="4">Technical Support (T)</option>
+                    </select>
+                </div>
+                <div class="service-selector">
+                    <label>Select Counter:</label>
+                    <select id="queue-counter">
+                        <option value="1">Counter 1</option>
+                        <option value="2">Counter 2</option>
+                        <option value="3">Counter 3</option>
+                        <option value="4">Counter 4</option>
+                    </select>
+                </div>
+                <div class="operation-buttons">
+                    <button class="op-button" onclick="callNext()">
+                        CALL NEXT
+                        <small>Move next to called</small>
+                    </button>
+                    <button class="op-button" onclick="recallTicket()" id="recall-btn" disabled>
+                        RECALL
+                        <small>Announce again</small>
+                    </button>
+                    <button class="op-button" onclick="markNoShow()" id="noshow-btn" disabled>
+                        NO SHOW
+                        <small>End without transaction</small>
+                    </button>
+                    <button class="op-button" onclick="endTransaction()" id="end-btn" disabled>
+                        END TRANSACTION
+                        <small>Complete transaction</small>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Middle: Queue Display and Stats -->
+            <div class="queue-main">
+                <!-- Stats Row -->
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-waiting">0</div>
+                        <div class="stat-label">Waiting</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-called">0</div>
+                        <div class="stat-label">Called</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-serving">0</div>
+                        <div class="stat-label">Serving</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                </div>
+
+                <!-- Queue Viewer -->
+                <div class="queue-viewer-section">
+                    <h3>Queue Status 
+                        <div style="float: right;">
+                            <select id="queue-sort-order" onchange="refreshQueue()" style="padding: 5px; font-size: 12px; margin-right: 10px;">
+                                <option value="FIFO">FIFO (Oldest First)</option>
+                                <option value="LIFO">LIFO (Newest First)</option>
+                            </select>
+                            <button onclick="refreshQueue()" style="padding: 5px 10px; font-size: 12px;">Refresh</button>
+                        </div>
+                    </h3>
+                    <div class="queue-viewer" id="queue-viewer">
+                        <!-- Queue tickets will be displayed here -->
+                    </div>
+                </div>
+
+                <!-- Response Area -->
+                <div style="background: #1a1a1a; border: 1px solid #00ff00; padding: 10px;">
+                    <h3 style="margin-bottom: 10px; font-size: 14px;">Operation Response</h3>
+                    <div class="response-area" id="queue-response">
+                        Ready for queue operations...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Currently Serving -->
+            <div class="current-serving-section">
+                <h3>Currently Serving</h3>
+                <div class="serving-display">
+                    <div class="serving-info" style="grid-column: 1 / -1;">
+                        <div class="serving-label">Ticket Number</div>
+                        <div id="current-ticket-number">---</div>
+                    </div>
+                    <div class="serving-info">
+                        <div class="serving-label">Wait Time</div>
+                        <div id="current-wait-time" class="serving-value">--:--</div>
+                    </div>
+                    <div class="serving-info">
+                        <div class="serving-label">Trans Time</div>
+                        <div id="current-trans-time" class="serving-value">--:--</div>
+                    </div>
+                </div>
+                <div class="counter-info">
+                    <div class="serving-label">Counter</div>
+                    <div id="current-counter" style="color: #ff00ff; font-size: 16px;">Not Selected</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Tab -->
+    <div id="database-tab" class="tab-content">
+        <h2>Database Viewer</h2>
+        <div>
+            <button onclick="loadTable('tickets')">View Tickets</button>
+            <button onclick="loadTable('services')">View Services</button>
+            <button onclick="executeQuery()">Execute Custom Query</button>
+        </div>
+        <div style="margin-top: 20px;">
+            <label>Custom SQL Query:</label>
+            <textarea id="custom-query" rows="3" placeholder="SELECT * FROM tickets WHERE state = 'waiting'"></textarea>
+        </div>
+        <div id="db-results" style="margin-top: 20px; max-height: 400px; overflow: auto;">
+            <!-- Database results will be displayed here -->
+        </div>
+    </div>
+
+    <!-- API Tester Tab -->
+    <div id="api-tab" class="tab-content">
+        <h2>API Tester</h2>
+        <div>
+            <label>Method:</label>
+            <select id="api-method">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>DELETE</option>
+            </select>
+        </div>
+        <div>
+            <label>Endpoint:</label>
+            <input type="text" id="api-endpoint" placeholder="/api/ticket" value="/api/ticket">
+        </div>
+        <div>
+            <label>Request Body (JSON):</label>
+            <textarea id="api-body" rows="4" placeholder='{"key": "value"}'>{}</textarea>
+        </div>
+        <button onclick="sendApiRequest()">Send Request</button>
+        <div style="margin-top: 20px;">
+            <h3>Response:</h3>
+            <pre id="api-response" style="background: #000; padding: 10px; border: 1px solid #00ff00; min-height: 100px;">
+Waiting for request...
+            </pre>
+        </div>
+    </div>
+
+    <!-- Printer Tab -->
+    <div id="printer-tab" class="tab-content">
+        <h2>Printer Testing</h2>
+        <div>
+            <button onclick="checkPrinterStatus()">Check Status</button>
+            <button onclick="printTestTicket()">Print Test Ticket</button>
+            <button onclick="printLastTicket()">Print Last Issued Ticket</button>
+        </div>
+        <div style="margin-top: 20px;">
+            <h3>Printer Response:</h3>
+            <pre id="printer-response" style="background: #000; padding: 10px; border: 1px solid #00ff00; min-height: 100px;">
+Printer ready...
+            </pre>
+        </div>
+    </div>
+
+    <script>
+        // Global state for queue operations
+        let currentServingTicket = null;
+        let transactionTimer = null;
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab') + '-tab';
+                document.getElementById(tabId).classList.add('active');
+
+                // Refresh queue when switching to queue tab
+                if (tab.getAttribute('data-tab') === 'queue') {
+                    refreshQueue();
+                }
+            });
+        });
+
+        // Update server time
+        function updateServerTime() {
+            const now = new Date();
+            document.getElementById('server-time').textContent = now.toLocaleTimeString();
+        }
+        setInterval(updateServerTime, 1000);
+
+        // Ticket Operations
+        async function issueTicket() {
+            const serviceId = document.getElementById('issue-service').value;
+            try {
+                const response = await fetch('/api/ticket', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ service_id: parseInt(serviceId) })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const ticketNumber = data.ticket ? data.ticket.number : data.number;
+                    const ticketId = data.ticket ? data.ticket.id : data.id;
+                    
+                    // AUTO-TRANSITION: Issue + State Change to 'waiting'
+                    // Use proper debug API instead of raw query
+                    if (ticketId) {
+                        try {
+                            const activateResponse = await fetch(`/api/debug/ticket/activate/${ticketId}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            const activateResult = await activateResponse.json();
+                            console.log(`Ticket ${ticketNumber} activated:`, activateResult.message);
+                        } catch (e) {
+                            console.error('Failed to activate ticket:', e);
+                        }
+                    }
+                    
+                    alert(`Ticket issued: ${ticketNumber || 'Unknown'}`);
+                    loadRecentTickets();
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        async function issueMultipleTickets() {
+            const serviceId = document.getElementById('issue-service').value;
+            const issued = [];
+            
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch('/api/ticket', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ service_id: parseInt(serviceId) })
+                    });
+                    const data = await response.json();
+                    const ticketNumber = data.ticket ? data.ticket.number : data.number;
+                    const ticketId = data.ticket ? data.ticket.id : data.id;
+                    issued.push(ticketNumber);
+                    
+                    // AUTO-TRANSITION: Issue + State Change to 'waiting'
+                    // Use proper debug API
+                    if (ticketId) {
+                        try {
+                            const activateResponse = await fetch(`/api/debug/ticket/activate/${ticketId}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            const activateResult = await activateResponse.json();
+                            console.log(`Ticket ${ticketNumber} activated:`, activateResult.message);
+                        } catch (e) {
+                            console.error('Failed to activate ticket:', e);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error issuing ticket ${i + 1}:`, error);
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            alert(`5 tickets issued: ${issued.join(', ')}`);
+            loadRecentTickets();
+        }
+
+        async function resetAllQueues() {
+            if (!confirm('This will end all active tickets and reset all counters. Continue?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/debug/queue/reset-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    loadRecentTickets();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        async function loadRecentTickets() {
+            try {
+                const response = await fetch('/api/debug/recent-tickets');
+                const tickets = await response.json();
+                
+                // Filter based on show-ended checkbox
+                const showEnded = document.getElementById('show-ended').checked;
+                const filteredTickets = showEnded ? tickets : tickets.filter(t => t.state !== 'ended');
+                
+                const tbody = document.getElementById('tickets-tbody');
+                if (filteredTickets.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No tickets to display</td></tr>';
+                } else {
+                    tbody.innerHTML = filteredTickets.map(ticket => `
+                        <tr>
+                            <td>${ticket.id}</td>
+                            <td>${ticket.number}</td>
+                            <td>${ticket.service_id}</td>
+                            <td class="${ticket.state}">${ticket.state}</td>
+                            <td>${new Date(ticket.issued_at).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading tickets:', error);
+            }
+        }
+
+        // Queue Operations - ENHANCED
+        async function callNext() {
+            const serviceId = document.getElementById('queue-service').value;
+            const counterId = document.getElementById('queue-counter').value;
+            
+            try {
+                // AUTO-END: If there's a current serving ticket, end it first
+                if (currentServingTicket && currentServingTicket.state === 'serving') {
+                    console.log(`Auto-ending previous ticket: ${currentServingTicket.number}`);
+                    try {
+                        const endResponse = await fetch('/api/queue/end', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                ticket_id: currentServingTicket.id
+                            })
+                        });
+                        const endResult = await endResponse.json();
+                        console.log(`Previous ticket ${currentServingTicket.number} ended:`, endResult.message);
+                    } catch (e) {
+                        console.error('Failed to auto-end previous ticket:', e);
+                    }
+                }
+                
+                // Now call the next ticket
+                const response = await fetch('/api/queue/next', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        service_id: parseInt(serviceId),
+                        counter_id: parseInt(counterId)
+                    })
+                });
+                const data = await response.json();
+                
+                const responseArea = document.getElementById('queue-response');
+                if (response.ok && data.ticket) {
+                    currentServingTicket = data.ticket;
+                    
+                    // AUTO-TRANSITION: Called + State Change to 'serving'
+                    // Use proper debug API for testing
+                    try {
+                        const serveResponse = await fetch(`/api/debug/ticket/start-serving/${data.ticket.id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const serveResult = await serveResponse.json();
+                        console.log(`Ticket ${data.ticket.number} moved to serving:`, serveResult.message);
+                        // Update local ticket object
+                        currentServingTicket.state = 'serving';
+                        currentServingTicket.served_at = new Date().toISOString();
+                    } catch (e) {
+                        console.error('Failed to start serving:', e);
+                    }
+                    
+                    updateServingDisplay(data.ticket);
+                    enableOperationButtons(true);
+                    
+                    responseArea.innerHTML = `<div class="success">✓ Called ticket: ${data.ticket.number}</div>
+<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    responseArea.innerHTML = `<div class="error">✗ Error: ${data.error || 'No tickets waiting'}</div>`;
+                }
+                refreshQueue();
+            } catch (error) {
+                document.getElementById('queue-response').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function recallTicket() {
+            if (!currentServingTicket) {
+                alert('No ticket currently being served');
+                return;
+            }
+            
+            const serviceId = document.getElementById('queue-service').value;
+            const counterId = document.getElementById('queue-counter').value;
+            
+            try {
+                const response = await fetch('/api/queue/recall', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        service_id: parseInt(serviceId),
+                        counter_id: parseInt(counterId),
+                        ticket_id: currentServingTicket.id
+                    })
+                });
+                const data = await response.json();
+                
+                const responseArea = document.getElementById('queue-response');
+                if (response.ok) {
+                    responseArea.innerHTML = `<div class="success">✓ Recall sent for ${currentServingTicket.number}</div>
+<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    responseArea.innerHTML = `<div class="error">✗ Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('queue-response').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function markNoShow() {
+            if (!currentServingTicket) {
+                alert('No ticket currently being served');
+                return;
+            }
+            
+            const serviceId = document.getElementById('queue-service').value;
+            const counterId = document.getElementById('queue-counter').value;
+            
+            try {
+                const response = await fetch('/api/queue/no-show', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        service_id: parseInt(serviceId),
+                        counter_id: parseInt(counterId),
+                        ticket_id: currentServingTicket.id
+                    })
+                });
+                const data = await response.json();
+                
+                const responseArea = document.getElementById('queue-response');
+                if (response.ok) {
+                    responseArea.innerHTML = `<div class="warning">✓ Marked ${currentServingTicket.number} as no-show</div>
+<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    clearServingDisplay();
+                } else {
+                    responseArea.innerHTML = `<div class="error">✗ Error: ${data.error}</div>`;
+                }
+                refreshQueue();
+            } catch (error) {
+                document.getElementById('queue-response').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function endTransaction() {
+            if (!currentServingTicket) {
+                alert('No ticket currently being served');
+                return;
+            }
+            
+            const serviceId = document.getElementById('queue-service').value;
+            const counterId = document.getElementById('queue-counter').value;
+            
+            try {
+                const response = await fetch('/api/queue/end', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        service_id: parseInt(serviceId),
+                        counter_id: parseInt(counterId),
+                        ticket_id: currentServingTicket.id
+                    })
+                });
+                const data = await response.json();
+                
+                const responseArea = document.getElementById('queue-response');
+                if (response.ok) {
+                    responseArea.innerHTML = `<div class="success">✓ Transaction completed for ${currentServingTicket.number}</div>
+<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    clearServingDisplay();
+                } else {
+                    responseArea.innerHTML = `<div class="error">✗ Error: ${data.error}</div>`;
+                }
+                refreshQueue();
+            } catch (error) {
+                document.getElementById('queue-response').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Display Management Functions
+        function updateServingDisplay(ticket) {
+            // Update ticket number
+            document.getElementById('current-ticket-number').textContent = ticket.number;
+            
+            // Update counter
+            const counterSelect = document.getElementById('queue-counter');
+            const counterText = counterSelect.options[counterSelect.selectedIndex].text;
+            document.getElementById('current-counter').textContent = counterText;
+            
+            // Calculate and display wait time
+            const issuedTime = new Date(ticket.issued_at);
+            const calledTime = new Date(ticket.called_at || new Date());
+            const waitMs = calledTime - issuedTime;
+            const waitMinutes = Math.floor(waitMs / 60000);
+            const waitSeconds = Math.floor((waitMs % 60000) / 1000);
+            document.getElementById('current-wait-time').textContent = 
+                `${waitMinutes.toString().padStart(2, '0')}:${waitSeconds.toString().padStart(2, '0')}`;
+            
+            // Start transaction timer
+            if (transactionTimer) {
+                clearInterval(transactionTimer);
+            }
+            const startTime = Date.now();
+            transactionTimer = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const minutes = Math.floor(elapsed / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                document.getElementById('current-trans-time').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function clearServingDisplay() {
+            currentServingTicket = null;
+            document.getElementById('current-ticket-number').textContent = '---';
+            document.getElementById('current-wait-time').textContent = '--:--';
+            document.getElementById('current-trans-time').textContent = '--:--';
+            document.getElementById('current-counter').textContent = 'Not Selected';
+            
+            if (transactionTimer) {
+                clearInterval(transactionTimer);
+                transactionTimer = null;
+            }
+            
+            enableOperationButtons(false);
+        }
+
+        function enableOperationButtons(enable) {
+            document.getElementById('recall-btn').disabled = !enable;
+            document.getElementById('noshow-btn').disabled = !enable;
+            document.getElementById('end-btn').disabled = !enable;
+        }
+
+        async function refreshQueue() {
+            const serviceId = document.getElementById('queue-service').value;
+            const sortOrder = document.getElementById('queue-sort-order').value;
+            
+            try {
+                const response = await fetch(`/api/queue/${serviceId}`);
+                const data = await response.json();
+                
+                // Update queue viewer
+                const viewer = document.getElementById('queue-viewer');
+                
+                // Collect all tickets from different states
+                const allTickets = [];
+                if (data.queue) {
+                    // Apply sorting to each state group
+                    const sortTickets = (tickets) => {
+                        if (sortOrder === 'LIFO') {
+                            return [...tickets].reverse();
+                        }
+                        return tickets; // FIFO is default from server
+                    };
+                    
+                    if (data.queue.waiting) allTickets.push(...sortTickets(data.queue.waiting));
+                    if (data.queue.called) allTickets.push(...sortTickets(data.queue.called));
+                    if (data.queue.serving) allTickets.push(...sortTickets(data.queue.serving));
+                }
+                
+                if (allTickets.length > 0) {
+                    viewer.innerHTML = allTickets.map(ticket => `
+                        <div class="ticket-item ${ticket.state}">
+                            <span>${ticket.number}</span>
+                            <span class="state-badge state-${ticket.state}">${ticket.state}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    viewer.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No tickets in queue</div>';
+                }
+
+                // Update statistics
+                const stats = {
+                    waiting: data.queue?.waiting?.length || 0,
+                    called: data.queue?.called?.length || 0,
+                    serving: data.queue?.serving?.length || 0
+                };
+                
+                document.getElementById('stat-waiting').textContent = stats.waiting;
+                document.getElementById('stat-called').textContent = stats.called;
+                document.getElementById('stat-serving').textContent = stats.serving;
+                document.getElementById('stat-total').textContent = stats.waiting + stats.called + stats.serving;
+                
+            } catch (error) {
+                document.getElementById('queue-viewer').innerHTML = 
+                    `<div class="error">Error loading queue: ${error.message}</div>`;
+            }
+        }
+
+        // Database Operations
+        async function loadTable(tableName) {
+            try {
+                const response = await fetch(`/api/debug/table/${tableName}`);
+                const data = await response.json();
+                
+                if (data.length > 0) {
+                    const headers = Object.keys(data[0]);
+                    const tableHtml = `
+                        <table>
+                            <thead>
+                                <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                            </thead>
+                            <tbody>
+                                ${data.map(row => `
+                                    <tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById('db-results').innerHTML = tableHtml;
+                } else {
+                    document.getElementById('db-results').innerHTML = '<p>No data found</p>';
+                }
+            } catch (error) {
+                document.getElementById('db-results').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function executeQuery() {
+            const query = document.getElementById('custom-query').value;
+            try {
+                const response = await fetch('/api/debug/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await response.json();
+                
+                if (response.ok && data.length > 0) {
+                    const headers = Object.keys(data[0]);
+                    const tableHtml = `
+                        <table>
+                            <thead>
+                                <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                            </thead>
+                            <tbody>
+                                ${data.map(row => `
+                                    <tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById('db-results').innerHTML = tableHtml;
+                } else {
+                    document.getElementById('db-results').innerHTML = '<p>No results or error occurred</p>';
+                }
+            } catch (error) {
+                document.getElementById('db-results').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+
+        // API Tester
+        async function sendApiRequest() {
+            const method = document.getElementById('api-method').value;
+            const endpoint = document.getElementById('api-endpoint').value;
+            const body = document.getElementById('api-body').value;
+            
+            try {
+                const options = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                
+                if (method !== 'GET' && body) {
+                    options.body = body;
+                }
+                
+                const response = await fetch(endpoint, options);
+                const data = await response.json();
+                
+                document.getElementById('api-response').textContent = 
+                    `Status: ${response.status} ${response.statusText}\n\n` +
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('api-response').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Printer Operations
+        async function checkPrinterStatus() {
+            try {
+                const response = await fetch('/api/printer/status');
+                const data = await response.json();
+                document.getElementById('printer-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('printer-response').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function printTestTicket() {
+            try {
+                const response = await fetch('/api/printer/test', { method: 'POST' });
+                const data = await response.json();
+                document.getElementById('printer-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('printer-response').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function printLastTicket() {
+            try {
+                const response = await fetch('/api/printer/last', { method: 'POST' });
+                const data = await response.json();
+                document.getElementById('printer-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('printer-response').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Load initial data
+        window.addEventListener('load', () => {
+            loadRecentTickets();
+            updateServerTime();
+            enableOperationButtons(false);
+        });
+
+        // Auto-refresh queue every 5 seconds when on queue tab
+        setInterval(() => {
+            const activeTab = document.querySelector('.tab.active').getAttribute('data-tab');
+            if (activeTab === 'queue') {
+                refreshQueue();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
