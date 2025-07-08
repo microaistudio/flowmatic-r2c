@@ -1,9 +1,11 @@
 // File: /src/routes/queue.js
 // Core queue operations - CRITICAL: Routes own transactions!
+// UPDATED: Timezone support from .env
 
 const express = require('express');
 const router = express.Router();
 const { StateManager, STATES, TRANSITIONS } = require('../models/StateManager');
+const { getSQLiteTimeFunction } = require('../utils/timezone');
 
 // Get database connection
 const db = require('../database/connection');
@@ -51,23 +53,25 @@ router.post('/next', async (req, res) => {
             });
         }
         
-        // Update ticket state atomically
+        // Get timezone-aware time function
+        const timeFunc = getSQLiteTimeFunction();
+        
+        // Update ticket state atomically with timezone-aware timestamp
         await db.run(`
             UPDATE tickets 
-            SET state = ?, called_at = ?, counter_id = ?, agent_id = ?
+            SET state = ?, called_at = ${timeFunc}, counter_id = ?, agent_id = ?
             WHERE id = ?
         `, [
             validation.updates.state,
-            validation.updates.called_at,
             counter_id,
             agent_id,
             ticket.id
         ]);
         
-        // Log the event
+        // Log the event with timezone-aware timestamp
         await db.run(`
-            INSERT INTO event_log (event_type, ticket_id, counter_id, agent_id, details)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO event_log (event_type, ticket_id, counter_id, agent_id, details, created_at)
+            VALUES (?, ?, ?, ?, ?, ${timeFunc})
         `, ['ticket_called', ticket.id, counter_id, agent_id, JSON.stringify({
             service_id,
             ticket_number: ticket.number
@@ -128,10 +132,13 @@ router.post('/recall', async (req, res) => {
             });
         }
         
-        // Log the recall event (no transaction needed - single operation)
+        // Get timezone-aware time function
+        const timeFunc = getSQLiteTimeFunction();
+        
+        // Log the recall event with timezone-aware timestamp (no transaction needed - single operation)
         await db.run(`
-            INSERT INTO event_log (event_type, ticket_id, details)
-            VALUES (?, ?, ?)
+            INSERT INTO event_log (event_type, ticket_id, details, created_at)
+            VALUES (?, ?, ?, ${timeFunc})
         `, ['ticket_recalled', ticket_id, JSON.stringify({
             ticket_number: ticket.number,
             counter_id: ticket.counter_id
@@ -189,14 +196,16 @@ router.post('/no-show', async (req, res) => {
             });
         }
         
-        // Update ticket
+        // Get timezone-aware time function
+        const timeFunc = getSQLiteTimeFunction();
+        
+        // Update ticket with timezone-aware timestamp
         await db.run(`
             UPDATE tickets 
-            SET state = ?, ended_at = ?, is_no_show = ?, transaction_completed = ?
+            SET state = ?, ended_at = ${timeFunc}, is_no_show = ?, transaction_completed = ?
             WHERE id = ?
         `, [
             validation.updates.state,
-            validation.updates.ended_at,
             validation.updates.is_no_show,
             validation.updates.transaction_completed,
             ticket_id
@@ -211,10 +220,10 @@ router.post('/no-show', async (req, res) => {
             `, [ticket.counter_id]);
         }
         
-        // Log event
+        // Log event with timezone-aware timestamp
         await db.run(`
-            INSERT INTO event_log (event_type, ticket_id, details)
-            VALUES (?, ?, ?)
+            INSERT INTO event_log (event_type, ticket_id, details, created_at)
+            VALUES (?, ?, ?, ${timeFunc})
         `, ['ticket_no_show', ticket_id, JSON.stringify({
             ticket_number: ticket.number,
             counter_id: ticket.counter_id
@@ -285,17 +294,19 @@ router.post('/end', async (req, res) => {
         
         // Calculate service duration
         const servedAt = new Date(ticket.served_at);
-        const endedAt = new Date(validation.updates.ended_at);
+        const endedAt = new Date();
         const serviceDuration = Math.floor((endedAt - servedAt) / 1000); // seconds
         
-        // Update ticket
+        // Get timezone-aware time function
+        const timeFunc = getSQLiteTimeFunction();
+        
+        // Update ticket with timezone-aware timestamp
         await db.run(`
             UPDATE tickets 
-            SET state = ?, ended_at = ?, is_no_show = ?, transaction_completed = ?, service_duration = ?
+            SET state = ?, ended_at = ${timeFunc}, is_no_show = ?, transaction_completed = ?, service_duration = ?
             WHERE id = ?
         `, [
             validation.updates.state,
-            validation.updates.ended_at,
             validation.updates.is_no_show,
             validation.updates.transaction_completed,
             serviceDuration,
@@ -311,10 +322,10 @@ router.post('/end', async (req, res) => {
             `, [ticket.counter_id]);
         }
         
-        // Log event
+        // Log event with timezone-aware timestamp
         await db.run(`
-            INSERT INTO event_log (event_type, ticket_id, details)
-            VALUES (?, ?, ?)
+            INSERT INTO event_log (event_type, ticket_id, details, created_at)
+            VALUES (?, ?, ?, ${timeFunc})
         `, ['ticket_completed', ticket_id, JSON.stringify({
             ticket_number: ticket.number,
             counter_id: ticket.counter_id,

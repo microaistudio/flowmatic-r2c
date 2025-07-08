@@ -1,6 +1,6 @@
 // FlowMatic-SOLO R2C - Main Server
 // File: /server.js
-// Phase 2: Queue Operations System
+// Phase 3: Multi-Agent System
 // All configuration from environment
 
 const express = require('express');
@@ -37,10 +37,14 @@ const ticketRoutes = require('./src/routes/ticket');
 const printerRoutes = require('./src/routes/printer');
 const queueRoutes = require('./src/routes/queue');
 const debugRoutes = require('./src/routes/debug');
+const authRoutes = require('./src/routes/auth');
+const counterRoutes = require('./src/routes/counter');
 
 // Register routes in correct order - SPECIFIC routes before GENERIC ones!
 // This order is CRITICAL - we learned this the hard way in Session 3!
-app.use(`${config.apiPrefix}/queue`, queueRoutes);    // Specific: /api/queue/*
+app.use(`${config.apiPrefix}/auth`, authRoutes);       // Specific: /api/auth/*
+app.use(`${config.apiPrefix}/counter`, counterRoutes); // Specific: /api/counter/*
+app.use(`${config.apiPrefix}/queue`, queueRoutes);     // Specific: /api/queue/*
 app.use(`${config.apiPrefix}/printer`, printerRoutes); // Specific: /api/printer/*
 app.use(`${config.apiPrefix}/debug`, debugRoutes);     // Specific: /api/debug/*
 app.use(`${config.apiPrefix}/ticket`, ticketRoutes);   // Has generic /:id routes, so goes last!
@@ -57,8 +61,8 @@ app.get('/health', (req, res) => {
         system: config.systemName,
         version: config.systemVersion,
         environment: config.nodeEnv,
-        phase: 2,
-        checkpoint: 'Queue Operations System',
+        phase: 3,
+        checkpoint: 'Multi-Agent System',
         timestamp: new Date().toISOString(),
         config: {
             port: config.port,
@@ -74,6 +78,22 @@ app.get(`${config.apiPrefix}/${config.apiVersion}/status`, (req, res) => {
         version: config.apiVersion,
         ready: true,
         endpoints: {
+            auth: {
+                login: `POST ${config.apiPrefix}/auth/login`,
+                logout: `POST ${config.apiPrefix}/auth/logout`,
+                session: `GET ${config.apiPrefix}/auth/session`,
+                validate: `POST ${config.apiPrefix}/auth/validate`,
+                test: `GET ${config.apiPrefix}/auth/test`
+            },
+            counters: {
+                status: `GET ${config.apiPrefix}/counter/status`,
+                counterStatus: `GET ${config.apiPrefix}/counter/:id/status`,
+                open: `POST ${config.apiPrefix}/counter/:id/open`,
+                close: `POST ${config.apiPrefix}/counter/:id/close`,
+                assign: `POST ${config.apiPrefix}/counter/:id/assign`,
+                unassign: `POST ${config.apiPrefix}/counter/:id/unassign`,
+                test: `GET ${config.apiPrefix}/counter/test`
+            },
             tickets: `${config.apiPrefix}/ticket`,
             printer: `${config.apiPrefix}/printer/*`,
             queue: {
@@ -126,7 +146,9 @@ app.listen(config.port, config.host, () => {
     console.log(`🖥️  Console: http://localhost:${config.port}/console`);
     console.log(`📡 API: ${config.apiPrefix}/${config.apiVersion}`);
     console.log(`🏭 Environment: ${config.nodeEnv}`);
-    console.log(`📋 Phase: 2 - Queue Operations Active`);
+    console.log(`📋 Phase: 3 - Multi-Agent System Active`);
+    console.log(`🔐 Auth: ${config.apiPrefix}/auth/*`);
+    console.log(`🏢 Counter: ${config.apiPrefix}/counter/*`);
     console.log(`\n🚨 Route Order: Specific routes registered before generic ones!`);
 });
 

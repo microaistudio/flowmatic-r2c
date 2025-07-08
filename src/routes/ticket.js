@@ -3,11 +3,13 @@
 // Phase 1: Ticket Printer System
 // Handles ticket issuance endpoints
 // FIXED: Now respects service prefixes
+// UPDATED: Timezone support from .env
 
 const express = require('express');
 const router = express.Router();
 const db = require('../database/connection');
 const printer = require('../printer/driver');
+const { getSQLiteTimeFunction } = require('../utils/timezone');
 
 // Get configuration from environment
 const config = {
@@ -49,14 +51,17 @@ router.post('/', async (req, res) => {
         // Format ticket number with padding (A001, B001, V001, T001, etc.)
         const ticketNumber = prefix + nextNumber.toString().padStart(config.padding, '0');
 
+        // Get timezone-aware time function
+        const timeFunc = getSQLiteTimeFunction();
+
         // Start transaction to ensure atomicity
         await db.run('BEGIN TRANSACTION');
 
         try {
-            // Insert new ticket with both issued_at and created_date
+            // Insert new ticket with timezone-aware timestamp
             const result = await db.run(`
-                INSERT INTO tickets (number, state, service_id, printed, created_date)
-                VALUES (?, ?, ?, ?, date('now'))
+                INSERT INTO tickets (number, state, service_id, printed, issued_at)
+                VALUES (?, ?, ?, ?, ${timeFunc})
             `, [ticketNumber, 'issued', serviceId, false]);
 
             // Update service's current_number

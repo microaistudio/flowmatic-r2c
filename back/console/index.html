@@ -608,105 +608,16 @@
         </div>
         <div>
             <label>Endpoint:</label>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <select id="endpoint-selector" onchange="selectEndpoint()" style="flex: 1;">
-                    <option value="">📁 Select Endpoint or Use Custom</option>
-                    
-                    <optgroup label="🔐 Authentication">
-                        <option value="POST:/api/auth/test">🧪 Test Auth Routes</option>
-                        <option value="POST:/api/auth/login">🔑 Agent Login</option>
-                        <option value="POST:/api/auth/logout">🚪 Agent Logout</option>
-                        <option value="GET:/api/auth/session">📋 Get Session Info</option>
-                        <option value="POST:/api/auth/validate">✅ Validate Session</option>
-                        <option value="GET:/api/auth/protected">🔒 Protected Test</option>
-                    </optgroup>
-                    
-                    <optgroup label="🎫 Ticket Management">
-                        <option value="POST:/api/ticket">🎫 Issue New Ticket</option>
-                        <option value="GET:/api/debug/recent-tickets">📋 Recent Tickets</option>
-                        <option value="POST:/api/debug/ticket/activate/{id}">⚡ Activate Ticket</option>
-                        <option value="POST:/api/debug/ticket/start-serving/{id}">👥 Start Serving</option>
-                        <option value="POST:/api/debug/ticket/auto-flow/{id}">🔄 Auto-Flow Ticket</option>
-                    </optgroup>
-                    
-                    <optgroup label="🏢 Counter Management">
-                        <option value="GET:/api/counter/status">📊 All Counter Status</option>
-                        <option value="POST:/api/counter/{id}/open">🟢 Open Counter</option>
-                        <option value="POST:/api/counter/{id}/close">🔴 Close Counter</option>
-                        <option value="POST:/api/counter/{id}/assign">👤 Assign Agent</option>
-                        <option value="POST:/api/counter/{id}/unassign">❌ Unassign Agent</option>
-                    </optgroup>
-                    
-                    <optgroup label="🎯 Queue Operations">
-                        <option value="POST:/api/queue/next">⏭️ Call Next Ticket</option>
-                        <option value="POST:/api/queue/recall">📢 Recall Ticket</option>
-                        <option value="POST:/api/queue/no-show">❌ Mark No-Show</option>
-                        <option value="POST:/api/queue/end">✅ End Transaction</option>
-                        <option value="GET:/api/queue/{serviceId}">👁️ View Queue</option>
-                        <option value="POST:/api/queue/park">🅿️ Park Ticket</option>
-                        <option value="POST:/api/queue/unpark">🔄 Unpark Ticket</option>
-                        <option value="POST:/api/queue/transfer">🔀 Transfer Service</option>
-                        <option value="POST:/api/queue/recycle">♻️ Recycle Ticket</option>
-                    </optgroup>
-                    
-                    <optgroup label="🧪 Debug & Testing">
-                        <option value="POST:/api/debug/queue/activate-all">⚡ Activate All Issued</option>
-                        <option value="POST:/api/debug/queue/reset-all">🗑️ Reset All Queues</option>
-                        <option value="POST:/api/debug/queue/create-test-data">🎲 Create Test Data</option>
-                        <option value="GET:/api/debug/queue-stats/{serviceId}">📊 Queue Statistics</option>
-                        <option value="GET:/api/debug/health">❤️ System Health</option>
-                    </optgroup>
-                    
-                    <optgroup label="🖨️ Printer">
-                        <option value="GET:/api/printer/status">📊 Printer Status</option>
-                        <option value="POST:/api/printer/test">🧪 Test Print</option>
-                        <option value="POST:/api/printer/last">🎫 Print Last Ticket</option>
-                    </optgroup>
-                    
-                    <optgroup label="🗄️ Database">
-                        <option value="GET:/api/debug/table/tickets">🎫 View Tickets Table</option>
-                        <option value="GET:/api/debug/table/services">🏢 View Services Table</option>
-                        <option value="GET:/api/debug/table/counters">🏪 View Counters Table</option>
-                        <option value="GET:/api/debug/table/agents">👥 View Agents Table</option>
-                        <option value="GET:/api/debug/table/sessions">🔐 View Sessions Table</option>
-                        <option value="POST:/api/debug/query">💻 Custom SQL Query</option>
-                    </optgroup>
-                    
-                    <optgroup label="📊 Reports (Future)">
-                        <option value="GET:/api/reports/daily">📅 Daily Report</option>
-                        <option value="GET:/api/reports/service/{id}">🏢 Service Report</option>
-                        <option value="GET:/api/reports/agent/{id}">👤 Agent Report</option>
-                        <option value="GET:/api/reports/counter/{id}">🏪 Counter Report</option>
-                    </optgroup>
-                </select>
-                <button type="button" onclick="fillTemplate()" style="padding: 8px 15px; font-size: 12px;">📝 Fill Template</button>
-            </div>
-            <input type="text" id="api-endpoint" placeholder="/api/custom/endpoint" style="margin-top: 5px;">
-            <small style="color: #666; display: block; margin-top: 5px;">Select from catalog above or enter custom endpoint. Use {id} for parameters.</small>
-        </div>
-        <div>
-            <label>Authorization Header (optional):</label>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="text" id="api-auth" placeholder="Bearer eyJhbGciOiJIUzI1NiI..." style="font-family: monospace; font-size: 12px; flex: 1;">
-                <button type="button" onclick="useStoredToken()" style="padding: 8px 15px; font-size: 12px;">Use Stored Token</button>
-                <button type="button" onclick="clearStoredToken()" style="padding: 8px 15px; font-size: 12px; background: #660000;">Clear</button>
-            </div>
-            <div id="token-status" style="color: #666; font-size: 11px; margin-top: 5px;">No token stored</div>
-            <small style="color: #666; display: block; margin-top: 5px;">For protected endpoints, paste your JWT token here or login to auto-store</small>
-        </div>
-        <div>
-            <label>Custom Headers (JSON, optional):</label>
-            <textarea id="api-headers" rows="2" placeholder='{"Content-Type": "application/json"}'>{}</textarea>
+            <input type="text" id="api-endpoint" placeholder="/api/ticket" value="/api/ticket">
         </div>
         <div>
             <label>Request Body (JSON):</label>
             <textarea id="api-body" rows="4" placeholder='{"key": "value"}'>{}</textarea>
-            <div id="body-template" style="margin-top: 5px; font-size: 11px; color: #666;"></div>
         </div>
         <button onclick="sendApiRequest()">Send Request</button>
         <div style="margin-top: 20px;">
             <h3>Response:</h3>
-            <pre id="api-response" style="background: #000; padding: 10px; border: 1px solid #00ff00; min-height: 100px; word-wrap: break-word; white-space: pre-wrap; overflow-wrap: break-word;">
+            <pre id="api-response" style="background: #000; padding: 10px; border: 1px solid #00ff00; min-height: 100px;">
 Waiting for request...
             </pre>
         </div>
@@ -1241,145 +1152,11 @@ Browser printing ready...
             }
         }
 
-        // Endpoint templates and automation
-        const endpointTemplates = {
-            'POST:/api/auth/login': {
-                body: '{\n  "username": "agent1",\n  "password": "test123"\n}',
-                description: 'Login with agent credentials'
-            },
-            'POST:/api/auth/logout': {
-                body: '{}',
-                description: 'Logout current session (requires token)'
-            },
-            'POST:/api/ticket': {
-                body: '{\n  "service_id": 1\n}',
-                description: 'Issue ticket for service (1=General, 2=Account, 3=VIP, 4=Technical)'
-            },
-            'POST:/api/queue/next': {
-                body: '{\n  "service_id": 1,\n  "counter_id": 1\n}',
-                description: 'Call next ticket in queue'
-            },
-            'POST:/api/queue/recall': {
-                body: '{\n  "service_id": 1,\n  "counter_id": 1,\n  "ticket_id": 123\n}',
-                description: 'Recall announced ticket'
-            },
-            'POST:/api/queue/no-show': {
-                body: '{\n  "service_id": 1,\n  "counter_id": 1,\n  "ticket_id": 123\n}',
-                description: 'Mark ticket as no-show'
-            },
-            'POST:/api/queue/end': {
-                body: '{\n  "service_id": 1,\n  "counter_id": 1,\n  "ticket_id": 123\n}',
-                description: 'Complete transaction'
-            },
-            'POST:/api/counter/{id}/assign': {
-                body: '{}',
-                description: 'Assign authenticated agent to counter (requires token)'
-            },
-            'POST:/api/counter/{id}/open': {
-                body: '{}',
-                description: 'Open counter for service'
-            },
-            'POST:/api/counter/{id}/close': {
-                body: '{}',
-                description: 'Close counter'
-            },
-            'POST:/api/debug/queue/create-test-data': {
-                body: '{\n  "service_id": 1,\n  "count": 5\n}',
-                description: 'Create test tickets in waiting state'
-            },
-            'POST:/api/debug/query': {
-                body: '{\n  "query": "SELECT * FROM tickets WHERE state = \'waiting\' LIMIT 10"\n}',
-                description: 'Execute custom SQL query'
-            }
-        };
-
-        function selectEndpoint() {
-            const selector = document.getElementById('endpoint-selector');
-            const selected = selector.value;
-            
-            if (selected) {
-                const [method, endpoint] = selected.split(':', 2);
-                document.getElementById('api-method').value = method;
-                document.getElementById('api-endpoint').value = endpoint;
-                fillTemplate();
-            }
-        }
-
-        function fillTemplate() {
-            const method = document.getElementById('api-method').value;
-            const endpoint = document.getElementById('api-endpoint').value;
-            const key = `${method}:${endpoint}`;
-            
-            const template = endpointTemplates[key];
-            if (template) {
-                document.getElementById('api-body').value = template.body;
-                document.getElementById('body-template').textContent = `💡 ${template.description}`;
-                document.getElementById('body-template').style.color = '#00ff00';
-            } else {
-                // Clear template info for custom endpoints
-                document.getElementById('body-template').textContent = '';
-            }
-            
-            // Auto-set auth requirement hint
-            const requiresAuth = endpoint.includes('/counter/') && endpoint.includes('/assign') ||
-                               endpoint.includes('/auth/logout') ||
-                               endpoint.includes('/auth/session') ||
-                               endpoint.includes('/auth/protected');
-            
-            if (requiresAuth && !document.getElementById('api-auth').value) {
-                document.getElementById('body-template').innerHTML += 
-                    '<br>🔐 <span style="color: #ffff00;">This endpoint requires authentication token</span>';
-            }
-        }
-
-        // Token management functions
-        function storeToken(token, expiresIn = '24h') {
-            storedToken = token;
-            // Calculate expiry time (simplified - assumes 24h if not specified)
-            const hours = expiresIn.includes('h') ? parseInt(expiresIn) : 24;
-            storedTokenExpiry = Date.now() + (hours * 60 * 60 * 1000);
-            updateTokenStatus();
-            console.log('✅ Token stored successfully');
-        }
-
-        function useStoredToken() {
-            if (storedToken && storedTokenExpiry > Date.now()) {
-                document.getElementById('api-auth').value = storedToken;
-                updateTokenStatus();
-            } else {
-                alert('No valid token stored. Please login first.');
-            }
-        }
-
-        function clearStoredToken() {
-            storedToken = null;
-            storedTokenExpiry = null;
-            document.getElementById('api-auth').value = '';
-            updateTokenStatus();
-        }
-
-        function updateTokenStatus() {
-            const statusEl = document.getElementById('token-status');
-            if (storedToken && storedTokenExpiry > Date.now()) {
-                const timeLeft = Math.round((storedTokenExpiry - Date.now()) / (60 * 60 * 1000));
-                statusEl.textContent = `✅ Valid token stored (expires in ~${timeLeft}h)`;
-                statusEl.style.color = '#00ff00';
-            } else if (storedToken) {
-                statusEl.textContent = '⚠️ Stored token expired';
-                statusEl.style.color = '#ffff00';
-            } else {
-                statusEl.textContent = 'No token stored';
-                statusEl.style.color = '#666';
-            }
-        }
-
         // API Tester
         async function sendApiRequest() {
             const method = document.getElementById('api-method').value;
             const endpoint = document.getElementById('api-endpoint').value;
             const body = document.getElementById('api-body').value;
-            const authHeader = document.getElementById('api-auth').value.trim();
-            const customHeaders = document.getElementById('api-headers').value.trim();
             
             try {
                 const options = {
@@ -1387,38 +1164,12 @@ Browser printing ready...
                     headers: { 'Content-Type': 'application/json' }
                 };
                 
-                // Add Authorization header if provided
-                if (authHeader) {
-                    if (authHeader.startsWith('Bearer ')) {
-                        options.headers['Authorization'] = authHeader;
-                    } else {
-                        options.headers['Authorization'] = 'Bearer ' + authHeader;
-                    }
-                }
-                
-                // Add custom headers if provided
-                if (customHeaders && customHeaders !== '{}') {
-                    try {
-                        const parsedHeaders = JSON.parse(customHeaders);
-                        Object.assign(options.headers, parsedHeaders);
-                    } catch (e) {
-                        throw new Error('Invalid JSON in custom headers');
-                    }
-                }
-                
-                if (method !== 'GET' && body && body.trim() !== '{}') {
+                if (method !== 'GET' && body) {
                     options.body = body;
                 }
                 
                 const response = await fetch(endpoint, options);
                 const data = await response.json();
-                
-                // Auto-store token if this was a successful login
-                if (endpoint.includes('/api/auth/login') && response.ok && data.token) {
-                    storeToken(data.token, data.expiresIn);
-                    // Auto-fill the auth header for immediate use
-                    document.getElementById('api-auth').value = data.token;
-                }
                 
                 document.getElementById('api-response').textContent = 
                     `Status: ${response.status} ${response.statusText}\n\n` +
@@ -1536,7 +1287,6 @@ Browser printing ready...
             loadRecentTickets();
             updateServerTime();
             enableOperationButtons(false);
-            updateTokenStatus();
         });
 
         // Auto-refresh queue every 5 seconds when on queue tab

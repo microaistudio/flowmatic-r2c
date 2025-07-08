@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowMatic R2C - Ticket Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .editor-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 350px 1fr 300px;
+            gap: 2rem;
+            height: calc(100vh - 4rem);
+        }
+
+        .panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 1.5rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        /* Control Panel */
+        .control-group {
+            margin-bottom: 2rem;
+        }
+
+        .control-label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .control-textarea {
+            resize: vertical;
+            min-height: 60px;
+            font-family: inherit;
+        }
+
+        .control-range {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+
+        .range-value {
+            display: inline-block;
+            background: #f3f4f6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        .color-picker {
+            width: 100%;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #6366f1;
+        }
+
+        /* Main Editor */
+        .editor-main {
+            background: #f8fafc;
+            position: relative;
+        }
+
+        .editor-header {
+            background: white;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #6366f1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5b56f0;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        /* Print Status Indicator */
+        .print-status {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .print-status.show {
+            opacity: 1;
+        }
+
+        .print-status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        .print-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+
+        .print-status.loading {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+        }
+
+        /* Ticket Preview */
+        .ticket-preview-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .ticket-preview {
+            width: 80mm;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            transform: scale(1.2);
+        }
+
+        .ticket-header {
+            text-align: center;
+            padding: 8mm 4mm;
+            background: var(--header-bg, #f8fafc);
+            border-bottom: var(--header-border, 2px solid #000);
+        }
+
+        .company-name {
+            font-size: var(--company-size, 14pt);
+            font-weight: bold;
+            color: var(--company-color, #000);
+            margin-bottom: 2mm;
+        }
+
+        .service-name {
+            font-size: var(--service-size, 11pt);
+            color: var(--service-color, #666);
+        }
+
+        .ticket-number {
+            text-align: center;
+            font-size: var(--number-size, 28pt);
+            font-weight: bold;
+            padding: var(--number-padding, 6mm);
+            color: var(--number-color, #000);
+            background: var(--number-bg, transparent);
+            border: var(--number-border, 3px solid #000);
+            margin: 4mm;
+            letter-spacing: 2px;
+        }
+
+        .ticket-details {
+            padding: 4mm;
+            font-size: var(--details-size, 10pt);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 1mm 0;
+        }
+
+        .detail-label {
+            font-weight: bold;
+        }
+
+        .queue-info {
+            text-align: center;
+            margin: 3mm 4mm;
+            padding: 3mm;
+            border: 1px solid #ddd;
+            background: var(--queue-bg, #f9f9f9);
+            border-radius: 4px;
+        }
+
+        .wait-time {
+            font-size: var(--wait-size, 11pt);
+            font-weight: bold;
+            color: var(--wait-color, #000);
+        }
+
+        .position {
+            font-size: var(--position-size, 10pt);
+            margin-top: 1mm;
+            color: var(--position-color, #666);
+        }
+
+        .ticket-footer {
+            text-align: center;
+            padding: 4mm;
+            border-top: 1px dashed #ddd;
+            font-size: var(--footer-size, 9pt);
+            color: var(--footer-color, #666);
+        }
+
+        /* Preset Styles */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .preset-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .preset-card:hover {
+            border-color: #6366f1;
+            background: #f8fafc;
+        }
+
+        .preset-card.active {
+            border-color: #6366f1;
+            background: #eef2ff;
+        }
+
+        .preset-name {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .preset-desc {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        /* Export Panel */
+        .export-option {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-option:hover {
+            background: #f1f5f9;
+            border-color: #6366f1;
+        }
+
+        .export-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .export-desc {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .editor-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+                height: auto;
+            }
+            
+            .ticket-preview {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Status Notification -->
+    <div id="printStatus" class="print-status"></div>
+
+    <div class="editor-container">
+        <!-- Control Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                🎨 Ticket Designer
+            </div>
+            <div class="panel-content">
+                <!-- Content Controls -->
+                <div class="control-group">
+                    <label class="control-label">Company Name</label>
+                    <input type="text" class="control-input" id="companyName" value="FLOWMATIC" placeholder="Company Name">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Service Name</label>
+                    <select class="control-input" id="serviceName">
+                        <option value="General Service">General Service (A)</option>
+                        <option value="Business Service">Business Service (B)</option>
+                        <option value="VIP Service">VIP Service (V)</option>
+                        <option value="Transfer Service">Transfer Service (T)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Ticket Number</label>
+                    <input type="text" class="control-input" id="ticketNumber" value="A001" placeholder="A001">
+                </div>
+
+                <!-- Typography -->
+                <div class="control-group">
+                    <label class="control-label">Company Font Size</label>
+                    <input type="range" class="control-range" id="companySize" min="10" max="20" value="14">
+                    <span class="range-value" id="companySizeValue">14pt</span>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Ticket Number Size</label>
+                    <input type="range" class="control-range" id="numberSize" min="20" max="40" value="28">
+                    <span class="range-value" id="numberSizeValue">28pt</span>
+                </div>
+
+                <!-- Colors -->
+                <div class="control-group">
+                    <label class="control-label">Header Background</label>
+                    <input type="color" class="color-picker" id="headerBg" value="#f8fafc">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Number Color</label>
+                    <input type="color" class="color-picker" id="numberColor" value="#000000">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Border Style</label>
+                    <select class="control-input" id="borderStyle">
+                        <option value="3px solid #000">Solid Black</option>
+                        <option value="2px dashed #000">Dashed Black</option>
+                        <option value="3px solid #6366f1">Solid Blue</option>
+                        <option value="2px double #000">Double Black</option>
+                    </select>
+                </div>
+
+                <!-- Layout Options -->
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" class="checkbox" id="showQueueInfo" checked>
+                        <label>Show Queue Information</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" class="checkbox" id="showDateTime" checked>
+                        <label>Show Date & Time</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" class="checkbox" id="showFooter" checked>
+                        <label>Show Footer Message</label>
+                    </div>
+                </div>
+
+                <!-- Print Service Status -->
+                <div class="control-group">
+                    <label class="control-label">Print Service Status</label>
+                    <div id="printServiceStatus" style="padding: 0.75rem; background: #f3f4f6; border-radius: 8px; font-size: 0.9rem;">
+                        🔄 Checking print service...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Editor -->
+        <div class="panel editor-main">
+            <div class="editor-header">
+                <h1 class="editor-title">Ticket Layout Editor</h1>
+                <div class="editor-actions">
+                    <button class="btn btn-secondary" onclick="resetToDefault()">
+                        🔄 Reset
+                    </button>
+                    <button class="btn btn-success" onclick="testPrint()" id="testPrintBtn">
+                        🖨️ Test Print
+                    </button>
+                    <button class="btn btn-primary" onclick="saveLayout()">
+                        💾 Save Layout
+                    </button>
+                </div>
+            </div>
+            
+            <div class="ticket-preview-container">
+                <div class="ticket-preview" id="ticketPreview">
+                    <div class="ticket-header">
+                        <div class="company-name" id="previewCompany">FLOWMATIC</div>
+                        <div class="service-name" id="previewService">General Service</div>
+                    </div>
+                    
+                    <div class="ticket-number" id="previewNumber">A001</div>
+                    
+                    <div class="ticket-details" id="ticketDetailsSection">
+                        <div class="detail-row">
+                            <span class="detail-label">Date:</span>
+                            <span id="previewDate">Jul 07, 2025</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Time:</span>
+                            <span id="previewTime">4:30 PM</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Service:</span>
+                            <span id="previewServiceName">General</span>
+                        </div>
+                    </div>
+                    
+                    <div class="queue-info" id="queueInfoSection">
+                        <div class="wait-time">Est. Wait: 5 minutes</div>
+                        <div class="position">Position: #3 in queue</div>
+                    </div>
+                    
+                    <div class="ticket-footer" id="footerSection">
+                        <div>Please wait for your number to be called</div>
+                        <div style="margin-top: 2mm; font-weight: bold;">Thank you!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export & Presets -->
+        <div class="panel">
+            <div class="panel-header">
+                ⚡ Presets & Export
+            </div>
+            <div class="panel-content">
+                <!-- Preset Styles -->
+                <div class="control-group">
+                    <label class="control-label">Style Presets</label>
+                    <div class="preset-grid">
+                        <div class="preset-card active" onclick="applyPreset('classic')">
+                            <div class="preset-name">Classic</div>
+                            <div class="preset-desc">Traditional black & white</div>
+                        </div>
+                        <div class="preset-card" onclick="applyPreset('modern')">
+                            <div class="preset-name">Modern</div>
+                            <div class="preset-desc">Clean blue accents</div>
+                        </div>
+                        <div class="preset-card" onclick="applyPreset('minimal')">
+                            <div class="preset-name">Minimal</div>
+                            <div class="preset-desc">Less borders, more space</div>
+                        </div>
+                        <div class="preset-card" onclick="applyPreset('bold')">
+                            <div class="preset-name">Bold</div>
+                            <div class="preset-desc">Large fonts, high contrast</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                <div class="control-group">
+                    <label class="control-label">Export Options</label>
+                    
+                    <div class="export-option" onclick="exportCSS()">
+                        <div class="export-title">📄 Export CSS</div>
+                        <div class="export-desc">Download CSS file for integration</div>
+                    </div>
+                    
+                    <div class="export-option" onclick="exportHTML()">
+                        <div class="export-title">🌐 Export HTML</div>
+                        <div class="export-desc">Complete HTML template</div>
+                    </div>
+                    
+                    <div class="export-option" onclick="exportConfig()">
+                        <div class="export-title">⚙️ Export Config</div>
+                        <div class="export-desc">JSON configuration file</div>
+                    </div>
+                </div>
+
+                <!-- Live Preview Controls -->
+                <div class="control-group">
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="updatePreview()">
+                        🔄 Update Preview
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" onclick="printPreview()">
+                        🖨️ Print Preview
+                    </button>
+                </div>
+
+                <!-- FlowMatic Integration -->
+                <div class="control-group">
+                    <label class="control-label">FlowMatic Integration</label>
+                    <button class="btn btn-success" style="width: 100%; margin-bottom: 0.5rem;" onclick="generateRandomTicket()">
+                        🎲 Generate Random Ticket
+                    </button>
+                    <button class="btn btn-primary" style="width: 100%;" onclick="checkPrintService()">
+                        🔍 Check Print Service
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentPreset = 'classic';
+        let printServiceAvailable = false;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Ticket Editor initializing...');
+            setupEventListeners();
+            updatePreview();
+            updateDateTime();
+            
+            // Delay initial print service check to ensure page is fully loaded
+            setTimeout(() => {
+                console.log('⏰ Starting print service check...');
+                checkPrintService();
+            }, 2000);
+            
+            setInterval(updateDateTime, 1000);
+            setInterval(checkPrintService, 60000); // Check every minute instead of 30 seconds
+        });
+
+        function setupEventListeners() {
+            // Input listeners
+            document.getElementById('companyName').addEventListener('input', updatePreview);
+            document.getElementById('serviceName').addEventListener('change', updatePreview);
+            document.getElementById('ticketNumber').addEventListener('input', updatePreview);
+            
+            // Range listeners
+            document.getElementById('companySize').addEventListener('input', function() {
+                document.getElementById('companySizeValue').textContent = this.value + 'pt';
+                updatePreview();
+            });
+            
+            document.getElementById('numberSize').addEventListener('input', function() {
+                document.getElementById('numberSizeValue').textContent = this.value + 'pt';
+                updatePreview();
+            });
+            
+            // Color listeners
+            document.getElementById('headerBg').addEventListener('change', updatePreview);
+            document.getElementById('numberColor').addEventListener('change', updatePreview);
+            document.getElementById('borderStyle').addEventListener('change', updatePreview);
+            
+            // Checkbox listeners
+            document.getElementById('showQueueInfo').addEventListener('change', updatePreview);
+            document.getElementById('showDateTime').addEventListener('change', updatePreview);
+            document.getElementById('showFooter').addEventListener('change', updatePreview);
+        }
+
+        function updatePreview() {
+            const preview = document.getElementById('ticketPreview');
+            
+            // Update content
+            document.getElementById('previewCompany').textContent = document.getElementById('companyName').value;
+            document.getElementById('previewService').textContent = document.getElementById('serviceName').value;
+            document.getElementById('previewNumber').textContent = document.getElementById('ticketNumber').value;
+            document.getElementById('previewServiceName').textContent = document.getElementById('serviceName').value.split(' ')[0];
+            
+            // Update styles
+            const companySize = document.getElementById('companySize').value;
+            const numberSize = document.getElementById('numberSize').value;
+            const headerBg = document.getElementById('headerBg').value;
+            const numberColor = document.getElementById('numberColor').value;
+            const borderStyle = document.getElementById('borderStyle').value;
+            
+            preview.style.setProperty('--company-size', companySize + 'pt');
+            preview.style.setProperty('--number-size', numberSize + 'pt');
+            preview.style.setProperty('--header-bg', headerBg);
+            preview.style.setProperty('--number-color', numberColor);
+            preview.style.setProperty('--number-border', borderStyle);
+            
+            // Show/hide sections
+            document.getElementById('queueInfoSection').style.display = 
+                document.getElementById('showQueueInfo').checked ? 'block' : 'none';
+            document.getElementById('ticketDetailsSection').style.display = 
+                document.getElementById('showDateTime').checked ? 'block' : 'none';
+            document.getElementById('footerSection').style.display = 
+                document.getElementById('showFooter').checked ? 'block' : 'none';
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('previewDate').textContent = now.toLocaleDateString();
+            document.getElementById('previewTime').textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        // FlowMatic Print Service Integration with retry
+        async function checkPrintService() {
+            const statusEl = document.getElementById('printServiceStatus');
+            const testBtn = document.getElementById('testPrintBtn');
+            
+            try {
+                console.log('🔍 Checking print service...');
+                const response = await fetch('http://localhost:3001/status', {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                
+                console.log('📡 Response received:', response.status);
+                const status = await response.json();
+                console.log('📄 Status data:', status);
+                
+                if (response.ok && (status.success || status.status === 'Ready')) {
+                    printServiceAvailable = true;
+                    statusEl.innerHTML = '✅ Print service ready (TM-T82III)';
+                    statusEl.style.background = '#d1fae5';
+                    statusEl.style.color = '#065f46';
+                    testBtn.disabled = false;
+                    console.log('✅ Print service available');
+                } else {
+                    throw new Error('Service not ready');
+                }
+            } catch (error) {
+                console.log('❌ Print service check failed:', error);
+                printServiceAvailable = false;
+                statusEl.innerHTML = '❌ Print service offline - Retrying...';
+                statusEl.style.background = '#fee2e2';
+                statusEl.style.color = '#991b1b';
+                testBtn.disabled = true;
+                
+                // Retry after 3 seconds
+                setTimeout(() => {
+                    console.log('🔄 Retrying print service check...');
+                    checkPrintService();
+                }, 3000);
+            }
+        }
+
+        function showPrintStatus(type, message) {
+            const statusEl = document.getElementById('printStatus');
+            statusEl.textContent = message;
+            statusEl.className = `print-status ${type} show`;
+            
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 3000);
+        }
+
+        async function testPrint() {
+            if (!printServiceAvailable) {
+                showPrintStatus('error', '❌ Print service not available - Checking...');
+                checkPrintService(); // Try to reconnect
+                return;
+            }
+
+            const ticketData = {
+                number: document.getElementById('ticketNumber').value,
+                service: document.getElementById('serviceName').value,
+                wait: '5 minutes',
+                position: '3',
+                company: document.getElementById('companyName').value,
+                created: new Date().toISOString()
+            };
+            
+            console.log('🖨️ Printing beautiful ticket:', ticketData);
+            showPrintStatus('loading', '🖨️ Printing ticket...');
+            
+            try {
+                const response = await fetch('http://localhost:3001/print', {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ticketData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Beautiful ticket printed successfully!');
+                    showPrintStatus('success', '✅ Beautiful ticket printed to TM-T82III!');
+                } else {
+                    throw new Error(result.error || 'Print failed');
+                }
+            } catch (error) {
+                console.error('❌ Print error:', error);
+                showPrintStatus('error', '❌ Print failed: ' + error.message);
+                // Try to reconnect print service
+                setTimeout(checkPrintService, 1000);
+            }
+        }
+
+        function generateRandomTicket() {
+            const services = ['General Service', 'Business Service', 'VIP Service', 'Transfer Service'];
+            const prefixes = ['A', 'B', 'V', 'T'];
+            const randomService = services[Math.floor(Math.random() * services.length)];
+            const randomPrefix = prefixes[services.indexOf(randomService)];
+            const randomNumber = Math.floor(Math.random() * 999) + 1;
+            
+            document.getElementById('serviceName').value = randomService;
+            document.getElementById('ticketNumber').value = randomPrefix + String(randomNumber).padStart(3, '0');
+            updatePreview();
+        }
+
+        function applyPreset(preset) {
+            // Remove active class from all presets
+            document.querySelectorAll('.preset-card').forEach(card => card.classList.remove('active'));
+            // Add active class to clicked preset
+            event.target.closest('.preset-card').classList.add('active');
+            
+            currentPreset = preset;
+            
+            const presets = {
+                classic: {
+                    companySize: 14,
+                    numberSize: 28,
+                    headerBg: '#f8fafc',
+                    numberColor: '#000000',
+                    borderStyle: '3px solid #000'
+                },
+                modern: {
+                    companySize: 16,
+                    numberSize: 32,
+                    headerBg: '#eef2ff',
+                    numberColor: '#6366f1',
+                    borderStyle: '3px solid #6366f1'
+                },
+                minimal: {
+                    companySize: 12,
+                    numberSize: 24,
+                    headerBg: '#ffffff',
+                    numberColor: '#374151',
+                    borderStyle: '1px solid #d1d5db'
+                },
+                bold: {
+                    companySize: 18,
+                    numberSize: 36,
+                    headerBg: '#1f2937',
+                    numberColor: '#ffffff',
+                    borderStyle: '4px solid #000'
+                }
+            };
+            
+            const config = presets[preset];
+            if (config) {
+                document.getElementById('companySize').value = config.companySize;
+                document.getElementById('companySizeValue').textContent = config.companySize + 'pt';
+                document.getElementById('numberSize').value = config.numberSize;
+                document.getElementById('numberSizeValue').textContent = config.numberSize + 'pt';
+                document.getElementById('headerBg').value = config.headerBg;
+                document.getElementById('numberColor').value = config.numberColor;
+                document.getElementById('borderStyle').value = config.borderStyle;
+                
+                updatePreview();
+            }
+        }
+
+        function resetToDefault() {
+            applyPreset('classic');
+            document.getElementById('companyName').value = 'FLOWMATIC';
+            document.getElementById('serviceName').value = 'General Service';
+            document.getElementById('ticketNumber').value = 'A001';
+            document.getElementById('showQueueInfo').checked = true;
+            document.getElementById('showDateTime').checked = true;
+            document.getElementById('showFooter').checked = true;
+            updatePreview();
+        }
+
+        function saveLayout() {
+            const config = {
+                companyName: document.getElementById('companyName').value,
+                serviceName: document.getElementById('serviceName').value,
+                companySize: document.getElementById('companySize').value,
+                numberSize: document.getElementById('numberSize').value,
+                headerBg: document.getElementById('headerBg').value,
+                numberColor: document.getElementById('numberColor').value,
+                borderStyle: document.getElementById('borderStyle').value,
+                showQueueInfo: document.getElementById('showQueueInfo').checked,
+                showDateTime: document.getElementById('showDateTime').checked,
+                showFooter: document.getElementById('showFooter').checked,
+                preset: currentPreset
+            };
+            
+            localStorage.setItem('flowmatic_ticket_layout', JSON.stringify(config));
+            showPrintStatus('success', '💾 Layout saved successfully!');
+        }
+
+        function exportCSS() {
+            const css = generateCSS();
+            downloadFile('flowmatic-ticket-styles.css', css, 'text/css');
+        }
+
+        function exportHTML() {
+            const html = generateHTML();
+            downloadFile('flowmatic-ticket-template.html', html, 'text/html');
+        }
+
+        function exportConfig() {
+            const config = {
+                companyName: document.getElementById('companyName').value,
+                serviceName: document.getElementById('serviceName').value,
+                styles: {
+                    companySize: document.getElementById('companySize').value + 'pt',
+                    numberSize: document.getElementById('numberSize').value + 'pt',
+                    headerBg: document.getElementById('headerBg').value,
+                    numberColor: document.getElementById('numberColor').value,
+                    borderStyle: document.getElementById('borderStyle').value
+                },
+                options: {
+                    showQueueInfo: document.getElementById('showQueueInfo').checked,
+                    showDateTime: document.getElementById('showDateTime').checked,
+                    showFooter: document.getElementById('showFooter').checked
+                },
+                preset: currentPreset,
+                printService: {
+                    available: printServiceAvailable,
+                    endpoint: 'http://localhost:3001/print'
+                }
+            };
+            
+            downloadFile('flowmatic-ticket-config.json', JSON.stringify(config, null, 2), 'application/json');
+        }
+
+        function generateCSS() {
+            return `/* FlowMatic Ticket Styles - Generated by Ticket Editor */
+.ticket-preview {
+    width: 80mm;
+    background: white;
+    font-family: 'Courier New', monospace;
+}
+
+.ticket-header {
+    text-align: center;
+    padding: 8mm 4mm;
+    background: ${document.getElementById('headerBg').value};
+    border-bottom: 2px solid #000;
+}
+
+.company-name {
+    font-size: ${document.getElementById('companySize').value}pt;
+    font-weight: bold;
+    margin-bottom: 2mm;
+}
+
+.ticket-number {
+    text-align: center;
+    font-size: ${document.getElementById('numberSize').value}pt;
+    font-weight: bold;
+    padding: 6mm;
+    color: ${document.getElementById('numberColor').value};
+    border: ${document.getElementById('borderStyle').value};
+    margin: 4mm;
+    letter-spacing: 2px;
+}
+
+@media print {
+    @page { size: 80mm auto; margin: 0; }
+    body { margin: 0; padding: 0; }
+}`;
+        }
+
+        function generateHTML() {
+            return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>FlowMatic Ticket</title>
+    <style>${generateCSS()}</style>
+</head>
+<body>
+    <div class="ticket-preview">
+        <div class="ticket-header">
+            <div class="company-name">${document.getElementById('companyName').value}</div>
+            <div class="service-name">${document.getElementById('serviceName').value}</div>
+        </div>
+        <div class="ticket-number">${document.getElementById('ticketNumber').value}</div>
+        <!-- FlowMatic Print Service Integration Ready -->
+    </div>
+</body>
+</html>`;
+        }
+
+        function printPreview() {
+            window.print();
+        }
+
+        function downloadFile(filename, content, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Load saved layout on page load
+        window.addEventListener('load', function() {
+            const saved = localStorage.getItem('flowmatic_ticket_layout');
+            if (saved) {
+                const config = JSON.parse(saved);
+                // Apply saved configuration
+                Object.keys(config).forEach(key => {
+                    const element = document.getElementById(key);
+                    if (element) {
+                        if (element.type === 'checkbox') {
+                            element.checked = config[key];
+                        } else {
+                            element.value = config[key];
+                        }
+                    }
+                });
+                updatePreview();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 'p':
+                        e.preventDefault();
+                        testPrint();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        saveLayout();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        resetToDefault();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
