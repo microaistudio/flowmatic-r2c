@@ -1,6 +1,6 @@
 // FlowMatic-SOLO R2C - Main Server
 // File: /server.js
-// Phase 3+: Multi-Agent System with Dual Auth Support
+// Phase 5: Customer Interfaces with Surface Integration
 // All configuration from environment
 
 const express = require('express');
@@ -62,6 +62,17 @@ const counterRoutes = require('./src/routes/counter');
 const reportsRoutes = require('./src/routes/reports'); // NEW: Reports endpoints
 const featuresRoutes = require('./src/routes/features'); // NEW: Feature toggles
 
+// ===================================================================
+// SURFACE ROUTES INTEGRATION
+// ===================================================================
+
+// Import surface route modules
+const kioskSurface = require('./src/surfaces/kiosk');
+// Future surfaces (uncomment when ready):
+// const terminalSurface = require('./src/surfaces/terminal');
+// const monitorSurface = require('./src/surfaces/monitor');
+// const dashboardSurface = require('./src/surfaces/dashboard');
+
 // Register routes in correct order - SPECIFIC routes before GENERIC ones!
 // This order is CRITICAL - we learned this the hard way in Session 3!
 app.use(`${config.apiPrefix}/auth/session`, sessionAuthRoutes); // NEW: Session auth (more specific)
@@ -74,20 +85,38 @@ app.use(`${config.apiPrefix}/reports`, reportsRoutes);          // NEW: Reports 
 app.use(`${config.apiPrefix}/features`, featuresRoutes);        // NEW: Features /api/features/*
 app.use(`${config.apiPrefix}/ticket`, ticketRoutes);            // Has generic /:id routes, so goes last!
 
+// ===================================================================
+// REGISTER SURFACE ROUTES (NEW)
+// ===================================================================
+
+// Kiosk Surface Routes
+// Handles: /kiosk/* and /kiosk/api/*
+app.use('/kiosk', kioskSurface);
+
+// Future surfaces (uncomment when implementing):
+// Agent Terminal Surface Routes
+// app.use('/terminal', terminalSurface);
+
+// Public Monitor Surface Routes  
+// app.use('/monitor', monitorSurface);
+
+// Operations Dashboard Surface Routes
+// app.use('/dashboard', dashboardSurface);
+
 // Debug Console route
 app.get('/console', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'console', 'index.html'));
 });
 
-// Basic health check endpoint
+// Basic health check endpoint (UPDATED)
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'ok', 
         system: config.systemName,
         version: config.systemVersion,
         environment: config.nodeEnv,
-        phase: '4',
-        checkpoint: 'Phase 4 Complete - Advanced Features',
+        phase: '5',
+        checkpoint: 'Phase 5 - Customer Interfaces',
         timestamp: new Date().toISOString(),
         config: {
             port: config.port,
@@ -97,12 +126,18 @@ app.get('/health', (req, res) => {
             jwt: 'Active (complex)',
             session: 'Active (simple)'
         },
+        surfaces: {
+            kiosk: 'Active'
+            // terminal: 'Pending',
+            // monitor: 'Pending', 
+            // dashboard: 'Pending'
+        },
         socketIO: 'Active',
         features: 'Configurable'
     });
 });
 
-// API version prefix
+// API version prefix (UPDATED)
 app.get(`${config.apiPrefix}/${config.apiVersion}/status`, (req, res) => {
     res.json({
         api: 'FlowMatic Queue API',
@@ -170,6 +205,20 @@ app.get(`${config.apiPrefix}/${config.apiVersion}/status`, (req, res) => {
                 check: `GET ${config.apiPrefix}/features/:name`,
                 toggle: `PUT ${config.apiPrefix}/features/:name`,
                 test: `GET ${config.apiPrefix}/features/test/status`
+            },
+            surfaces: {
+                kiosk: {
+                    interface: 'GET /kiosk',
+                    config: `GET /kiosk/api/config`,
+                    ticket: `POST /kiosk/api/ticket`,
+                    queue: `GET /kiosk/api/queue/:id`,
+                    analytics: `GET /kiosk/api/analytics`,
+                    health: `GET /kiosk/api/health`,
+                    settings: `POST /kiosk/api/settings`
+                }
+                // terminal: { ... },
+                // monitor: { ... },
+                // dashboard: { ... }
             }
         }
     });
@@ -183,6 +232,7 @@ app.use((req, res) => {
         availableEndpoints: {
             health: '/health',
             console: '/console',
+            kiosk: '/kiosk',
             api: `${config.apiPrefix}/${config.apiVersion}/status`
         }
     });
@@ -205,9 +255,13 @@ server.listen(config.port, config.host, () => {
     console.log(`🌐 URL: http://localhost:${config.port}`);
     console.log(`🔗 Health: http://localhost:${config.port}/health`);
     console.log(`🖥️  Console: http://localhost:${config.port}/console`);
+    console.log(`🖥️  Kiosk: http://localhost:${config.port}/kiosk`);
+    // console.log(`🖥️  Terminal: http://localhost:${config.port}/terminal`);
+    // console.log(`📺 Monitor: http://localhost:${config.port}/monitor`);
+    // console.log(`📊 Dashboard: http://localhost:${config.port}/dashboard`);
     console.log(`📡 API: ${config.apiPrefix}/${config.apiVersion}`);
     console.log(`🏭 Environment: ${config.nodeEnv}`);
-    console.log(`📋 Phase: 4 COMPLETE - Advanced Features Ready`);
+    console.log(`📋 Phase: 5 - Customer Interfaces`);
     console.log(`🔐 JWT Auth: ${config.apiPrefix}/auth/*`);
     console.log(`🔑 Session Auth: ${config.apiPrefix}/auth/session/*`);
     console.log(`🏢 Counter: ${config.apiPrefix}/counter/*`);
@@ -217,7 +271,8 @@ server.listen(config.port, config.host, () => {
     console.log(`\n🚨 Route Order: Specific routes registered before generic ones!`);
     console.log(`\n🎯 Auth Migration: Both JWT and Session auth available`);
     console.log(`\n⚡ Real-time: Socket.IO enabled for live updates`);
-    console.log(`\n🏁 Phase 4: 100% Complete - Ready for Phase 5 UIs!`);
+    console.log(`\n🖥️  Surfaces: Kiosk interface ready!`);
+    console.log(`\n🏁 Phase 5: Customer Interface Development Started!`);
 });
 
 module.exports = server; // Changed from app to server for testing later
