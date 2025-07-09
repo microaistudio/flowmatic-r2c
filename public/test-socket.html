@@ -1,0 +1,150 @@
+<!-- File: /flowmatic-r2c/public/test-socket.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Test - FlowMatic R2C</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .event-log {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Socket.IO Connection Test</h1>
+        
+        <div id="status" class="status disconnected">
+            Status: <span id="statusText">Disconnected</span>
+        </div>
+        
+        <div>
+            <h3>Test Events</h3>
+            <button onclick="testQueueUpdate()">Test Queue Update</button>
+            <button onclick="testTicketCall()">Test Ticket Call</button>
+            <button onclick="testHeartbeat()">Test Heartbeat</button>
+        </div>
+        
+        <div>
+            <h3>Event Log</h3>
+            <div id="eventLog" class="event-log">
+                Waiting for connection...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO connection
+        const socket = io();
+        const eventLog = document.getElementById('eventLog');
+        const statusEl = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            eventLog.innerHTML += `[${timestamp}] ${message}\n`;
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+
+        // Connection events
+        socket.on('connect', () => {
+            statusEl.className = 'status connected';
+            statusText.textContent = 'Connected (ID: ' + socket.id + ')';
+            log('✅ Connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            statusEl.className = 'status disconnected';
+            statusText.textContent = 'Disconnected';
+            log('❌ Disconnected from server');
+        });
+
+        // Listen for queue events
+        socket.on('queue:updated', (data) => {
+            log('📊 Queue Updated: ' + JSON.stringify(data));
+        });
+
+        socket.on('ticket:called', (data) => {
+            log('📢 Ticket Called: ' + JSON.stringify(data));
+        });
+
+        socket.on('ticket:stateChanged', (data) => {
+            log('🔄 State Changed: ' + JSON.stringify(data));
+        });
+
+        socket.on('counter:statusChanged', (data) => {
+            log('🏪 Counter Status: ' + JSON.stringify(data));
+        });
+
+        socket.on('heartbeat', (data) => {
+            log('💓 Heartbeat: ' + data.timestamp);
+        });
+
+        // Test functions
+        function testQueueUpdate() {
+            // This would normally come from server
+            log('🔧 Requesting queue update test...');
+            socket.emit('test:queueUpdate');
+        }
+
+        function testTicketCall() {
+            log('🔧 Requesting ticket call test...');
+            socket.emit('test:ticketCall');
+        }
+
+        function testHeartbeat() {
+            log('🔧 Requesting heartbeat test...');
+            socket.emit('test:heartbeat');
+        }
+
+        // Initial log
+        log('Socket.IO test page loaded');
+    </script>
+</body>
+</html>

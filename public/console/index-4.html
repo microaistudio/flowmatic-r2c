@@ -762,7 +762,6 @@ Ready for advanced queue operations...
                         <option value="POST:/api/queue/no-show">❌ Mark No-Show</option>
                         <option value="POST:/api/queue/end">✅ End Transaction</option>
                         <option value="GET:/api/queue/{serviceId}">👁️ View Queue</option>
-                        <option value="GET:/api/queue/current/{counterId}">📍 Current Serving</option>
                         <option value="POST:/api/queue/park">🅿️ Park Ticket</option>
                         <option value="POST:/api/queue/unpark">🔄 Unpark Ticket</option>
                         <option value="GET:/api/queue/parked/{agentId}">📋 View Parked Tickets</option>
@@ -876,11 +875,6 @@ Browser printing ready...
                 // Refresh queue when switching to queue tab
                 if (tab.getAttribute('data-tab') === 'queue') {
                     refreshQueue();
-                }
-                
-                // Load current serving when switching to Queue+ tab
-                if (tab.getAttribute('data-tab') === 'queue-plus') {
-                    loadCurrentServing();
                 }
             });
         });
@@ -1309,246 +1303,6 @@ Browser printing ready...
             }
         }
 
-        // Queue+ Operations
-        async function loadCurrentServing() {
-            const counterId = document.getElementById('qplus-counter-select').value;
-            
-            try {
-                const response = await fetch(`/api/queue/current/${counterId}`);
-                const data = await response.json();
-                
-                if (data.success && data.ticket) {
-                    // Update the display with current ticket info
-                    document.getElementById('qplus-current-ticket').textContent = data.ticket.number;
-                    document.getElementById('qplus-current-counter').textContent = `Counter ${counterId}`;
-                    
-                    // Calculate service time if served_at exists
-                    if (data.ticket.served_at) {
-                        const servedAt = new Date(data.ticket.served_at);
-                        const now = new Date();
-                        const serviceMs = now - servedAt;
-                        const minutes = Math.floor(serviceMs / 60000);
-                        const seconds = Math.floor((serviceMs % 60000) / 1000);
-                        document.getElementById('qplus-service-time').textContent = 
-                            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                    } else {
-                        document.getElementById('qplus-service-time').textContent = '--:--';
-                    }
-                    
-                    // Update park section with current ticket info
-                    const parkInfo = document.getElementById('park-ticket-info');
-                    parkInfo.innerHTML = `
-                        <div style="color: #00ff00;">
-                            <strong>Current Ticket:</strong> ${data.ticket.number}
-                            <span style="color: #666; margin-left: 10px;">(ID: ${data.ticket.id})</span>
-                        </div>
-                        <div style="color: #999; font-size: 12px; margin-top: 5px;">
-                            State: ${data.ticket.state} | 
-                            Service: ${data.ticket.service_id}
-                        </div>
-                    `;
-                    
-                    // Enable park button since we have a ticket
-                    document.getElementById('park-button').disabled = false;
-                    
-                } else {
-                    // No ticket currently being served
-                    document.getElementById('qplus-current-ticket').textContent = '---';
-                    document.getElementById('qplus-current-counter').textContent = `Counter ${counterId}`;
-                    document.getElementById('qplus-service-time').textContent = '--:--';
-                    
-                    const parkInfo = document.getElementById('park-ticket-info');
-                    parkInfo.innerHTML = '<p style="color: #666; text-align: center;">No ticket currently being served at this counter</p>';
-                    
-                    // Disable park button since no ticket
-                    document.getElementById('park-button').disabled = true;
-                }
-                
-                // Also load parked tickets for this counter
-                await loadParkedTicketsForCounter(counterId);
-                
-            } catch (error) {
-                console.error('Error loading current serving:', error);
-                document.getElementById('qplus-current-ticket').textContent = 'ERROR';
-                document.getElementById('qplus-service-time').textContent = '--:--';
-            }
-        }
-
-        async function loadParkedTicketsForCounter(counterId) {
-            try {
-                // For now, we'll use agent ID 1 - in future this should be from session
-                const agentId = 1;
-                const response = await fetch(`/api/queue/parked/${agentId}`);
-                const data = await response.json();
-                
-                const listDiv = document.getElementById('parked-tickets-list');
-                const selectDiv = document.getElementById('unpark-ticket-select');
-                
-                if (data.success && data.tickets.length > 0) {
-                    // Update parked tickets display
-                    listDiv.innerHTML = data.tickets.map(ticket => `
-                        <div style="border: 1px solid #333; padding: 8px; margin-bottom: 5px; background: #1a1a1a;">
-                            <div style="display: flex; justify-content: space-between;">
-                                <span style="color: #00ff00;">Ticket: ${ticket.number}</span>
-                                <span style="color: #666; font-size: 11px;">ID: ${ticket.id}</span>
-                            </div>
-                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
-                                Reason: ${ticket.park_reason || 'Not specified'}
-                            </div>
-                            <div style="font-size: 11px; color: #666; margin-top: 3px;">
-                                Parked: ${new Date(ticket.parked_at).toLocaleString()}
-                            </div>
-                        </div>
-                    `).join('');
-                    
-                    // Update unpark select options
-                    selectDiv.innerHTML = data.tickets.map(ticket => 
-                        `<option value="${ticket.id}">${ticket.number} - ${ticket.park_reason || 'No reason'}</option>`
-                    ).join('');
-                    
-                    // Enable unpark button
-                    document.getElementById('unpark-button').disabled = false;
-                    
-                } else {
-                    listDiv.innerHTML = '<p style="color: #666; text-align: center;">No parked tickets</p>';
-                    selectDiv.innerHTML = '<option value="">-- No parked tickets --</option>';
-                    document.getElementById('unpark-button').disabled = true;
-                }
-            } catch (error) {
-                console.error('Error loading parked tickets:', error);
-            }
-        }
-
-        // Start service time timer when page loads
-        setInterval(() => {
-            const activeTab = document.querySelector('.tab.active').getAttribute('data-tab');
-            if (activeTab === 'queue-plus') {
-                // Update service time if there's a current ticket
-                const currentTicket = document.getElementById('qplus-current-ticket').textContent;
-                if (currentTicket && currentTicket !== '---' && currentTicket !== 'ERROR') {
-                    // Just increment the displayed time
-                    const timeEl = document.getElementById('qplus-service-time');
-                    const currentTime = timeEl.textContent;
-                    if (currentTime && currentTime !== '--:--') {
-                        const [minutes, seconds] = currentTime.split(':').map(Number);
-                        let newSeconds = seconds + 1;
-                        let newMinutes = minutes;
-                        if (newSeconds >= 60) {
-                            newSeconds = 0;
-                            newMinutes++;
-                        }
-                        timeEl.textContent = 
-                            `${newMinutes.toString().padStart(2, '0')}:${newSeconds.toString().padStart(2, '0')}`;
-                    }
-                }
-            }
-        }, 1000);
-
-        function checkCustomReason() {
-            const reasonSelect = document.getElementById('park-reason');
-            const customInput = document.getElementById('park-custom-reason');
-            if (reasonSelect.value === 'custom') {
-                customInput.style.display = 'block';
-            } else {
-                customInput.style.display = 'none';
-            }
-        }
-
-        async function parkCurrentTicket() {
-            // Get current ticket info from display
-            const ticketText = document.getElementById('qplus-current-ticket').textContent;
-            if (!ticketText || ticketText === '---' || ticketText === 'ERROR') {
-                alert('No ticket currently being served');
-                return;
-            }
-            
-            // Extract ticket ID from the park info section
-            const parkInfo = document.getElementById('park-ticket-info').innerHTML;
-            const ticketIdMatch = parkInfo.match(/ID: (\d+)/);
-            if (!ticketIdMatch) {
-                alert('Cannot find ticket ID');
-                return;
-            }
-            
-            const ticketId = parseInt(ticketIdMatch[1]);
-            const counterId = document.getElementById('qplus-counter-select').value;
-            const agentId = 1; // For now, hardcoded - should come from session
-            
-            const reasonSelect = document.getElementById('park-reason');
-            let reason = reasonSelect.value;
-            
-            if (reason === 'custom') {
-                reason = document.getElementById('park-custom-reason').value;
-                if (!reason.trim()) {
-                    alert('Please enter a custom reason');
-                    return;
-                }
-            }
-            
-            try {
-                const response = await fetch('/api/queue/park', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ticket_id: ticketId,
-                        agent_id: agentId,
-                        reason: reason
-                    })
-                });
-                
-                const data = await response.json();
-                const responseArea = document.getElementById('queue-plus-response');
-                
-                if (response.ok) {
-                    responseArea.innerHTML = `<div class="success">✓ ${data.message}</div>\n<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                    // Reload current serving to update display
-                    await loadCurrentServing();
-                } else {
-                    responseArea.innerHTML = `<div class="error">✗ Error: ${data.error}</div>\n<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                }
-            } catch (error) {
-                document.getElementById('queue-plus-response').innerHTML = 
-                    `<div class="error">✗ Error: ${error.message}</div>`;
-            }
-        }
-
-        async function unparkTicket() {
-            const ticketId = document.getElementById('unpark-ticket-select').value;
-            const position = document.getElementById('unpark-position').value;
-            const agentId = 1; // For now, hardcoded
-            
-            if (!ticketId) {
-                alert('Please select a ticket to unpark');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/queue/unpark', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ticket_id: parseInt(ticketId),
-                        agent_id: agentId,
-                        position: position
-                    })
-                });
-                
-                const data = await response.json();
-                const responseArea = document.getElementById('queue-plus-response');
-                
-                if (response.ok) {
-                    responseArea.innerHTML = `<div class="success">✓ ${data.message}</div>\n<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                    // Reload current serving and parked tickets
-                    await loadCurrentServing();
-                } else {
-                    responseArea.innerHTML = `<div class="error">✗ Error: ${data.error}</div>\n<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                }
-            } catch (error) {
-                document.getElementById('queue-plus-response').innerHTML = 
-                    `<div class="error">✗ Error: ${error.message}</div>`;
-            }
-        }
-
         // Database Operations
         async function loadTable(tableName) {
             try {
@@ -1909,18 +1663,145 @@ Browser printing ready...
             }
         }
 
+        // Queue+ Operations
+        function checkCustomReason() {
+            const reasonSelect = document.getElementById('park-reason');
+            const customInput = document.getElementById('park-custom-reason');
+            if (reasonSelect.value === 'custom') {
+                customInput.style.display = 'block';
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+
+        async function parkTicket() {
+            const ticketId = document.getElementById('park-ticket-id').value;
+            const agentId = document.getElementById('park-agent-id').value;
+            const reasonSelect = document.getElementById('park-reason');
+            let reason = reasonSelect.value;
+            
+            if (reason === 'custom') {
+                reason = document.getElementById('park-custom-reason').value;
+                if (!reason.trim()) {
+                    alert('Please enter a custom reason');
+                    return;
+                }
+            }
+            
+            if (!ticketId) {
+                alert('Please enter a ticket ID');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/queue/park', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ticket_id: parseInt(ticketId),
+                        agent_id: parseInt(agentId),
+                        reason: reason
+                    })
+                });
+                
+                const data = await response.json();
+                const responseArea = document.getElementById('queue-plus-response');
+                
+                if (response.ok) {
+                    responseArea.innerHTML = `<div class="success">✓ ${data.message}</div>\n<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    // Clear input
+                    document.getElementById('park-ticket-id').value = '';
+                    // Reload parked tickets if viewing same agent
+                    if (document.getElementById('view-parked-agent').value === agentId) {
+                        loadParkedTickets();
+                    }
+                } else {
+                    responseArea.innerHTML = `<div class="error">✗ Error: ${data.error}</div>\n<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                document.getElementById('queue-plus-response').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function unparkTicket() {
+            const ticketId = document.getElementById('unpark-ticket-id').value;
+            const agentId = document.getElementById('unpark-agent-id').value;
+            const position = document.getElementById('unpark-position').value;
+            
+            if (!ticketId) {
+                alert('Please enter a ticket ID');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/queue/unpark', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ticket_id: parseInt(ticketId),
+                        agent_id: parseInt(agentId),
+                        position: position
+                    })
+                });
+                
+                const data = await response.json();
+                const responseArea = document.getElementById('queue-plus-response');
+                
+                if (response.ok) {
+                    responseArea.innerHTML = `<div class="success">✓ ${data.message}</div>\n<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    // Clear input
+                    document.getElementById('unpark-ticket-id').value = '';
+                    // Reload parked tickets
+                    loadParkedTickets();
+                } else {
+                    responseArea.innerHTML = `<div class="error">✗ Error: ${data.error}</div>\n<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                document.getElementById('queue-plus-response').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function loadParkedTickets() {
+            const agentId = document.getElementById('view-parked-agent').value;
+            
+            try {
+                const response = await fetch(`/api/queue/parked/${agentId}`);
+                const data = await response.json();
+                
+                const listDiv = document.getElementById('parked-tickets-list');
+                
+                if (data.success && data.tickets.length > 0) {
+                    listDiv.innerHTML = data.tickets.map(ticket => `
+                        <div style="border: 1px solid #333; padding: 8px; margin-bottom: 5px; background: #1a1a1a;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #00ff00;">Ticket: ${ticket.number}</span>
+                                <span style="color: #666; font-size: 11px;">ID: ${ticket.id}</span>
+                            </div>
+                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                Reason: ${ticket.park_reason || 'Not specified'}
+                            </div>
+                            <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                                Parked: ${new Date(ticket.parked_at).toLocaleString()}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    listDiv.innerHTML = '<p style="color: #666; text-align: center;">No parked tickets for this agent</p>';
+                }
+            } catch (error) {
+                document.getElementById('parked-tickets-list').innerHTML = 
+                    `<p class="error">Error loading parked tickets: ${error.message}</p>`;
+            }
+        }
+
         // Load initial data
         window.addEventListener('load', () => {
             loadRecentTickets();
             updateServerTime();
             enableOperationButtons(false);
             updateTokenStatus();
-            
-            // Load current serving when Queue+ tab is active
-            const activeTab = document.querySelector('.tab.active').getAttribute('data-tab');
-            if (activeTab === 'queue-plus') {
-                loadCurrentServing();
-            }
         });
 
         // Auto-refresh queue every 5 seconds when on queue tab
