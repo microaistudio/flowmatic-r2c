@@ -4,6 +4,7 @@
 // Handles ticket issuance endpoints
 // FIXED: Now respects service prefixes
 // UPDATED: Timezone support from .env
+// FIXED: Tickets now created in 'waiting' state
 
 const express = require('express');
 const router = express.Router();
@@ -59,10 +60,11 @@ router.post('/', async (req, res) => {
 
         try {
             // Insert new ticket with timezone-aware timestamp
+            // FIXED: Changed state from 'issued' to 'waiting'
             const result = await db.run(`
                 INSERT INTO tickets (number, state, service_id, printed, issued_at)
                 VALUES (?, ?, ?, ?, ${timeFunc})
-            `, [ticketNumber, 'issued', serviceId, false]);
+            `, [ticketNumber, 'waiting', serviceId, false]);
 
             // Update service's current_number
             await db.run(

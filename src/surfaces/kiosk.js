@@ -1,12 +1,8 @@
 // File: /src/surfaces/kiosk.js
 // Project: FlowMatic-SOLO R2C
 // Phase: 5 - Customer Interfaces
-// Surface: Kiosk Interface Logic
-// Purpose: Kiosk endpoints, configuration, and business logic
-// Dependencies: Core routes (/api/*), auth, database
-// Pattern: Surface-specific route architecture
-// URLs: /kiosk/*, /api/kiosk/*
-// Created: 2025-07-10
+// Purpose: Minimal kiosk surface - just serve HTML and kiosk-specific settings
+// Note: All business logic uses existing /api/* endpoints from core routes
 
 const express = require('express');
 const path = require('path');
@@ -14,13 +10,21 @@ const router = express.Router();
 const db = require('../database/connection');
 
 // ===================================================================
-// KIOSK CONFIGURATION & SETTINGS
+// SERVE KIOSK HTML
 // ===================================================================
 
-// Load kiosk configuration from database
-async function getKioskConfiguration() {
+// Serve kiosk interface
+router.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../public/kiosk/index.html'));
+});
+
+// ===================================================================
+// KIOSK-SPECIFIC SETTINGS (Display preferences only)
+// ===================================================================
+
+// Get kiosk display settings
+router.get('/settings', async (req, res) => {
     try {
-        // Get kiosk settings
         const settings = await db.get(`
             SELECT 
                 global_language,
@@ -33,80 +37,13 @@ async function getKioskConfiguration() {
                 promotion_message_en,
                 promotion_message_th,
                 promotion_message_hi,
-                logo_url,
                 touch_sound_enabled,
                 screen_saver_minutes
             FROM kiosk_settings 
             WHERE id = 1
         `);
 
-        // Get active services with current queue data
-        const services = await db.all(`
-            SELECT 
-                s.id,
-                s.name,
-                s.prefix,
-                s.color,
-                s.icon,
-                s.description_en,
-                s.description_th,
-                s.description_hi,
-                s.is_active,
-                s.current_number,
-                COUNT(CASE WHEN t.state = 'waiting' THEN 1 END) as queue_count,
-                ROUND(AVG(CASE 
-                    WHEN t.state IN ('serving', 'ended') 
-                    AND t.served_at IS NOT NULL 
-                    AND t.called_at IS NOT NULL
-                    THEN (julianday(t.served_at) - julianday(t.called_at)) * 24 * 60 
-                END), 0) as avg_service_time,
-                ROUND(AVG(CASE 
-                    WHEN t.state IN ('called', 'serving', 'ended') 
-                    AND t.called_at IS NOT NULL 
-                    THEN (julianday(t.called_at) - julianday(t.issued_at)) * 24 * 60 
-                END), 0) as avg_wait_time
-            FROM services s
-            LEFT JOIN tickets t ON s.id = t.service_id 
-                AND DATE(t.issued_at) = DATE('now')
-            WHERE s.is_active = 1
-            GROUP BY s.id, s.name, s.prefix, s.color, s.icon, 
-                     s.description_en, s.description_th, s.description_hi,
-                     s.is_active, s.current_number
-            ORDER BY s.id
-        `);
-
-        // Calculate estimated wait times
-        const servicesWithEstimates = services.map(service => {
-            const estimatedWait = Math.max(1, 
-                (service.queue_count * (service.avg_service_time || 3)) || 5
-            );
-            const realWait = Math.max(1, service.avg_wait_time || estimatedWait);
-
-            return {
-                id: service.id,
-                name: {
-                    en: service.name,
-                    th: service.name, // In real app, these would be separate columns
-                    hi: service.name
-                },
-                description: {
-                    en: service.description_en || `${service.name} services`,
-                    th: service.description_th || service.description_en || `${service.name} services`,
-                    hi: service.description_hi || service.description_en || `${service.name} services`
-                },
-                prefix: service.prefix,
-                type: service.prefix.toLowerCase(),
-                color: service.color,
-                icon: service.icon || '🏢',
-                isActive: Boolean(service.is_active),
-                currentNumber: service.current_number,
-                queueCount: service.queue_count || 0,
-                estimatedWait: estimatedWait,
-                realWait: realWait
-            };
-        });
-
-        return {
+        res.json({
             globalLanguage: settings?.global_language || 'en',
             allowLanguageOverride: Boolean(settings?.allow_language_override ?? true),
             displaySettings: {
@@ -124,372 +61,21 @@ async function getKioskConfiguration() {
                 }
             },
             appearance: {
-                logoUrl: settings?.logo_url || '',
                 touchSoundEnabled: Boolean(settings?.touch_sound_enabled ?? true),
                 screenSaverMinutes: settings?.screen_saver_minutes || 5
-            },
-            services: servicesWithEstimates
-        };
-    } catch (error) {
-        console.error('Error loading kiosk configuration:', error);
-        throw error;
-    }
-}
-
-// ===================================================================
-// TICKET ISSUANCE LOGIC
-// ===================================================================
-
-async function issueKioskTicket(serviceId, language = 'en', deviceInfo = {}, req = null) {
-    return new Promise(async (resolve, reject) => {
-        // Start exclusive transaction for ticket generation
-        await db.run('BEGIN EXCLUSIVE TRANSACTION');
-        
-        try {
-            // Get service information
-            const service = await db.get(`
-                SELECT id, name, prefix, current_number, is_active 
-                FROM services 
-                WHERE id = ? AND is_active = 1
-            `, [serviceId]);
-
-            if (!service) {
-                throw new Error('Service not found or inactive');
             }
-
-            // Get next ticket number (SAME AS CONSOLE LOGIC)
-            const nextNumber = await db.get(`
-                SELECT COALESCE(current_number, 0) + 1 as next_num
-                FROM services 
-                WHERE id = ?
-            `, [serviceId]);
-
-            const ticketNumber = `${service.prefix}${String(nextNumber.next_num).padStart(3, '0')}`;
-
-            // Insert new ticket
-            const result = await db.run(`
-                INSERT INTO tickets (
-                    number, service_id, state, issued_at, printed, 
-                    issued_language, device_type, screen_resolution
-                ) VALUES (?, ?, 'waiting', datetime('now'), 0, ?, ?, ?)
-            `, [
-                ticketNumber, 
-                serviceId, 
-                language,
-                deviceInfo.type || 'kiosk',
-                deviceInfo.resolution || 'unknown'
-            ]);
-
-            const ticketId = result.lastID;
-
-            // Update service current number
-            await db.run(`
-                UPDATE services 
-                SET current_number = ?, updated_at = datetime('now')
-                WHERE id = ?
-            `, [ticketNumber, serviceId]);
-
-            // Calculate estimated wait time
-            const queueCount = await db.get(`
-                SELECT COUNT(*) as count 
-                FROM tickets 
-                WHERE service_id = ? AND state = 'waiting' AND id < ?
-            `, [serviceId, ticketId]);
-
-            const avgServiceTime = await db.get(`
-                SELECT ROUND(AVG(
-                    (julianday(served_at) - julianday(called_at)) * 24 * 60
-                ), 0) as avg_time
-                FROM tickets 
-                WHERE service_id = ? 
-                AND served_at IS NOT NULL 
-                AND called_at IS NOT NULL
-                AND DATE(issued_at) >= DATE('now', '-7 days')
-            `, [serviceId]);
-
-            const estimatedWait = Math.max(1, 
-                queueCount.count * (avgServiceTime.avg_time || 3)
-            );
-
-            // Log analytics
-            await db.run(`
-                INSERT INTO kiosk_analytics (
-                    ticket_id, service_id, language, device_type,
-                    queue_position, estimated_wait, timestamp
-                ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-            `, [
-                ticketId, serviceId, language, deviceInfo.type || 'kiosk',
-                queueCount.count + 1, estimatedWait
-            ]);
-
-            // Commit transaction first
-            await db.run('COMMIT');
-
-            // NOTE: Printing is handled by the client-side kiosk interface
-            // The VM server cannot directly reach the Bangkok printer
-            // The kiosk HTML will call the local print service at http://localhost:3001
-            console.log(`📝 Ticket ${ticketNumber} created - client will handle printing`);
-
-            // Emit real-time update
-            const io = req && req.app ? req.app.get('io') : null;
-            if (io) {
-                io.emit('ticket:issued', {
-                    ticketNumber,
-                    serviceId,
-                    queuePosition: queueCount.count + 1,
-                    estimatedWait
-                });
-
-                io.emit('queue:updated', {
-                    serviceId,
-                    queueCount: queueCount.count + 1
-                });
-            }
-
-            resolve({
-                success: true,
-                ticketId,
-                ticketNumber,
-                serviceName: service.name,
-                queuePosition: queueCount.count + 1,
-                estimatedWait,
-                message: {
-                    en: `Ticket ${ticketNumber} issued successfully`,
-                    th: `ออกตั๋ว ${ticketNumber} สำเร็จ`,
-                    hi: `टिकट ${ticketNumber} सफलतापूर्वक जारी किया गया`
-                }
-            });
-
-        } catch (error) {
-            // Rollback on error
-            await db.run('ROLLBACK');
-            console.error('Error issuing kiosk ticket:', error);
-            reject(error);
-        }
-    });
-}
-
-// ===================================================================
-// KIOSK ANALYTICS & MONITORING
-// ===================================================================
-
-async function getKioskAnalytics(period = 'today') {
-    try {
-        let dateFilter = "DATE(timestamp) = DATE('now')";
-        
-        if (period === 'week') {
-            dateFilter = "timestamp >= datetime('now', '-7 days')";
-        } else if (period === 'month') {
-            dateFilter = "timestamp >= datetime('now', '-30 days')";
-        }
-
-        const stats = await db.all(`
-            SELECT 
-                service_id,
-                language,
-                device_type,
-                COUNT(*) as ticket_count,
-                AVG(estimated_wait) as avg_estimated_wait,
-                COUNT(DISTINCT DATE(timestamp)) as active_days
-            FROM kiosk_analytics 
-            WHERE ${dateFilter}
-            GROUP BY service_id, language, device_type
-            ORDER BY ticket_count DESC
-        `);
-
-        const summary = await db.get(`
-            SELECT 
-                COUNT(*) as total_tickets,
-                COUNT(DISTINCT language) as languages_used,
-                COUNT(DISTINCT device_type) as device_types,
-                AVG(estimated_wait) as avg_wait_time
-            FROM kiosk_analytics 
-            WHERE ${dateFilter}
-        `);
-
-        return {
-            period,
-            summary: summary || {
-                total_tickets: 0,
-                languages_used: 0,
-                device_types: 0,
-                avg_wait_time: 0
-            },
-            breakdown: stats
-        };
+        });
     } catch (error) {
-        console.error('Error getting kiosk analytics:', error);
-        throw error;
-    }
-}
-
-// ===================================================================
-// HTTP ROUTES
-// ===================================================================
-
-// Serve kiosk interface
-router.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../../public/kiosk/index.html'));
-});
-
-// Get kiosk configuration
-router.get('/api/config', async (req, res) => {
-    try {
-        const config = await getKioskConfiguration();
-        res.json(config);
-    } catch (error) {
-        console.error('Error loading kiosk config:', error);
+        console.error('Error loading kiosk settings:', error);
         res.status(500).json({ 
-            error: 'Failed to load kiosk configuration',
+            error: 'Failed to load kiosk settings',
             message: error.message 
         });
     }
 });
 
-// Issue ticket from kiosk
-router.post('/api/ticket', async (req, res) => {
-    try {
-        const { serviceId, service_id, language = 'en' } = req.body;
-        
-        // Support both serviceId and service_id
-        const actualServiceId = serviceId || service_id;
-        
-        if (!actualServiceId) {
-            return res.status(400).json({ 
-                error: 'Service ID is required' 
-            });
-        }
-
-        // Get device info from request
-        const deviceInfo = {
-            type: req.headers['x-device-type'] || 'kiosk',
-            resolution: req.headers['x-screen-resolution'] || 'unknown',
-            userAgent: req.headers['user-agent'] || 'unknown'
-        };
-
-        const result = await issueKioskTicket(actualServiceId, language, deviceInfo, req);
-        res.json(result);
-
-    } catch (error) {
-        console.error('Error issuing kiosk ticket:', error);
-        res.status(500).json({ 
-            error: 'Failed to issue ticket',
-            message: error.message 
-        });
-    }
-});
-
-// Get real-time queue status
-router.get('/api/queue', async (req, res) => {
-    try {
-        const { serviceId } = req.query;
-        
-        let query = `
-            SELECT 
-                s.id as service_id,
-                s.name as service_name,
-                s.prefix,
-                s.current_number,
-                COUNT(CASE WHEN t.state = 'waiting' THEN 1 END) as waiting_count,
-                COUNT(CASE WHEN t.state = 'called' THEN 1 END) as called_count,
-                COUNT(CASE WHEN t.state = 'serving' THEN 1 END) as serving_count
-            FROM services s
-            LEFT JOIN tickets t ON s.id = t.service_id 
-                AND DATE(t.issued_at) = DATE('now')
-            WHERE s.is_active = 1
-        `;
-        
-        let params = [];
-        
-        if (serviceId) {
-            query += ' AND s.id = ?';
-            params.push(serviceId);
-        }
-        
-        query += ' GROUP BY s.id, s.name, s.prefix, s.current_number ORDER BY s.id';
-        
-        const queueStatus = await db.all(query, params);
-        
-        res.json({
-            timestamp: new Date().toISOString(),
-            queues: queueStatus
-        });
-        
-    } catch (error) {
-        console.error('Error getting queue status:', error);
-        res.status(500).json({ 
-            error: 'Failed to get queue status',
-            message: error.message 
-        });
-    }
-});
-
-// Add specific route for single service
-router.get('/api/queue/:serviceId', async (req, res) => {
-    try {
-        const { serviceId } = req.params;
-        
-        const query = `
-            SELECT 
-                s.id as service_id,
-                s.name as service_name,
-                s.prefix,
-                s.current_number,
-                COUNT(CASE WHEN t.state = 'waiting' THEN 1 END) as waiting_count,
-                COUNT(CASE WHEN t.state = 'called' THEN 1 END) as called_count,
-                COUNT(CASE WHEN t.state = 'serving' THEN 1 END) as serving_count
-            FROM services s
-            LEFT JOIN tickets t ON s.id = t.service_id 
-                AND DATE(t.issued_at) = DATE('now')
-            WHERE s.is_active = 1 AND s.id = ?
-            GROUP BY s.id, s.name, s.prefix, s.current_number
-        `;
-        
-        const queueStatus = await db.all(query, [serviceId]);
-        
-        res.json({
-            timestamp: new Date().toISOString(),
-            queues: queueStatus
-        });
-        
-    } catch (error) {
-        console.error('Error getting queue status:', error);
-        res.status(500).json({ 
-            error: 'Failed to get queue status',
-            message: error.message 
-        });
-    }
-});
-
-// Get kiosk analytics
-router.get('/api/analytics', async (req, res) => {
-    try {
-        const { period = 'today' } = req.query;
-        const analytics = await getKioskAnalytics(period);
-        res.json(analytics);
-    } catch (error) {
-        console.error('Error getting kiosk analytics:', error);
-        res.status(500).json({ 
-            error: 'Failed to get analytics',
-            message: error.message 
-        });
-    }
-});
-
-// Health check endpoint
-router.get('/api/health', (req, res) => {
-    res.json({
-        status: 'healthy',
-        surface: 'kiosk',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        version: process.env.npm_package_version || '1.0.0'
-    });
-});
-
-// Update kiosk settings (admin only)
-router.post('/api/settings', async (req, res) => {
+// Update kiosk display settings (admin only)
+router.post('/settings', async (req, res) => {
     try {
         const {
             globalLanguage,
@@ -536,21 +122,6 @@ router.post('/api/settings', async (req, res) => {
             screenSaverMinutes
         ]);
 
-        // Emit settings update to all connected kiosks
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('kiosk:settings-updated', {
-                globalLanguage,
-                allowLanguageOverride,
-                displaySettings: {
-                    showRWT,
-                    showEWT,
-                    showQueueCount,
-                    showDescriptions
-                }
-            });
-        }
-
         res.json({ 
             success: true, 
             message: 'Kiosk settings updated successfully' 
@@ -565,64 +136,66 @@ router.post('/api/settings', async (req, res) => {
     }
 });
 
-// Test print endpoint (for debugging)
-router.post('/api/test-print', async (req, res) => {
+// ===================================================================
+// KIOSK ANALYTICS (Optional - for tracking kiosk usage patterns)
+// ===================================================================
+
+// Log kiosk interaction (called by frontend)
+router.post('/analytics', async (req, res) => {
     try {
-        const testPayload = {
-            ticketNumber: 'TEST001',
-            serviceName: 'Test Service',
-            queuePosition: 1,
-            estimatedWait: 5,
-            timestamp: new Date().toISOString(),
-            language: 'en',
-            source: 'kiosk-test'
-        };
+        const { event, data } = req.body;
         
-        console.log(`🖨️ Testing print service at http://localhost:3001`);
+        await db.run(`
+            INSERT INTO kiosk_analytics (
+                event_type, 
+                event_data, 
+                timestamp
+            ) VALUES (?, ?, datetime('now'))
+        `, [event, JSON.stringify(data)]);
         
-        const response = await fetch(`http://localhost:3001/print`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(testPayload)
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            res.json({ 
-                success: true, 
-                message: 'Test print sent successfully',
-                result 
-            });
-        } else {
-            const error = await response.text();
-            res.status(500).json({ 
-                success: false, 
-                error: 'Print service error',
-                details: error 
-            });
-        }
+        res.json({ success: true });
     } catch (error) {
-        console.error('Test print error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to reach print service',
-            message: error.message,
-            printServiceUrl: 'http://localhost:3001'
-        });
+        console.error('Error logging analytics:', error);
+        res.status(500).json({ error: 'Failed to log analytics' });
     }
 });
 
-// Error handling middleware for kiosk routes
-router.use((error, req, res, next) => {
-    console.error('Kiosk route error:', error);
-    res.status(500).json({
-        error: 'Internal server error',
-        surface: 'kiosk',
-        timestamp: new Date().toISOString()
-    });
+// Get kiosk usage analytics
+router.get('/analytics', async (req, res) => {
+    try {
+        const { period = 'today' } = req.query;
+        
+        let dateFilter = "DATE(timestamp) = DATE('now')";
+        if (period === 'week') {
+            dateFilter = "timestamp >= datetime('now', '-7 days')";
+        } else if (period === 'month') {
+            dateFilter = "timestamp >= datetime('now', '-30 days')";
+        }
+
+        const stats = await db.all(`
+            SELECT 
+                event_type,
+                COUNT(*) as count,
+                DATE(timestamp) as date
+            FROM kiosk_analytics 
+            WHERE ${dateFilter}
+            GROUP BY event_type, DATE(timestamp)
+            ORDER BY date DESC, count DESC
+        `);
+
+        res.json({ period, stats });
+    } catch (error) {
+        console.error('Error getting analytics:', error);
+        res.status(500).json({ error: 'Failed to get analytics' });
+    }
 });
 
 module.exports = router;
+
+// ===================================================================
+// THAT'S IT! Everything else uses existing routes:
+// - POST /api/ticket - Issue tickets (from ticket.js)
+// - GET /api/queue/:serviceId - Get queue status (from queue.js) 
+// - GET /api/services - Get services list (from services.js)
+// - All other business logic already exists!
+// ===================================================================

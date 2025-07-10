@@ -554,6 +554,7 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+                align-items: center;
                 overflow: hidden;
                 border-radius: 12px;
                 aspect-ratio: 16/9;
@@ -563,21 +564,15 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                 width: 50px;
                 height: 50px;
                 font-size: 24px;
-                margin: 0 auto 12px auto;
+                margin: 0 auto 15px auto;
                 flex-shrink: 0;
                 border-radius: 12px;
             }
             
-            .queue-number {
-                font-size: 1.8rem;
-                margin-bottom: 8px;
-                line-height: 1;
-                flex-shrink: 0;
-            }
-            
             .service-name {
-                font-size: 1.1rem;
-                margin-bottom: 12px;
+                font-size: 1.3rem;
+                font-weight: 600;
+                margin-bottom: 20px;
                 line-height: 1.2;
                 flex-shrink: 0;
                 text-align: center;
@@ -740,6 +735,12 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             color: var(--service-general);
             margin-bottom: 16px;
         }
+        
+        .success-service {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
 
         .success-message {
             color: var(--text-secondary);
@@ -810,16 +811,16 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
         <div class="success-icon">✓</div>
         <div class="success-title" data-i18n="success.title">Ticket Issued Successfully!</div>
         <div class="success-service" id="issuedService">General Service</div>
-        <div class="success-ticket" id="issuedTicket">A047</div>
+        <div class="success-ticket" id="issuedTicket">A001</div>
         <div class="success-message" data-i18n="success.message">
             Please take your printed ticket and wait for your number to be called.
         </div>
     </div>
 
     <script>
-        // FIXED: Server Configuration for proper communication
-        const SERVER_URL = 'http://34.128.86.132:8080'; // Remote VM server
-        const PRINT_SERVICE_URL = 'http://localhost:3001'; // Local print service
+        // FIXED: Server Configuration - use relative URLs, not hardcoded!
+        const SERVER_URL = ''; // Empty means use same origin
+        const PRINT_SERVICE_URL = 'http://localhost:3001'; // Local print service always on localhost
         
         // Kiosk Configuration & Data
         const kioskConfig = {
@@ -984,70 +985,44 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             });
         }
 
-        // Load services from server with real queue data
+        // Load services from server with real queue data - FIXED to use correct endpoint and response format
         async function loadServicesFromServer() {
             try {
-                console.log('🔄 Fetching latest queue data...');
+                console.log('🔄 Fetching queue status for each service...');
                 
-                // Get queue status from the server
-                const response = await fetch(`${SERVER_URL}/api/queue`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const queues = data.queues || data;
-                    
-                    console.log('📊 Raw queue data:', data);
-                    
-                    // Process each service
-                    kioskConfig.services.forEach((service, index) => {
-                        // Find matching queue data
-                        let queueInfo = null;
+                // Fetch each service's queue data individually using the existing endpoint
+                for (const service of kioskConfig.services) {
+                    try {
+                        // Use the existing /api/queue/:serviceId endpoint
+                        const response = await fetch(`/api/queue/${service.id}`);
                         
-                        // Try different ways to match the queue data
-                        if (Array.isArray(queues)) {
-                            queueInfo = queues.find(q => 
-                                q.service_id === service.id ||
-                                q.service_name?.includes(service.prefix) ||
-                                q.prefix === service.prefix
-                            );
-                        }
-                        
-                        if (queueInfo) {
-                            // Use real data from server
-                            service.currentNumber = queueInfo.current_number || `${service.prefix}001`;
-                            service.queueCount = parseInt(queueInfo.waiting_count) || 0;
-                            service.estimatedWait = service.queueCount * 3;
-                            service.realWait = service.estimatedWait;
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log(`📊 Queue data for service ${service.id}:`, data);
                             
-                            console.log(`✅ Updated ${service.prefix}: ${service.currentNumber}, Waiting: ${service.queueCount}`);
-                        } else {
-                            // No data - show zeros
-                            service.currentNumber = `${service.prefix}001`;
-                            service.queueCount = 0;
-                            service.estimatedWait = 0;
-                            service.realWait = 0;
-                            
-                            console.log(`⚠️ No data for ${service.prefix} - showing zeros`);
+                            // Read from the correct response structure
+                            if (data.success && data.queue && data.queue.stats) {
+                                const waitingCount = data.queue.stats.waiting_count || 0;
+                                service.queueCount = waitingCount;
+                                service.estimatedWait = waitingCount * 3; // 3 minutes per person
+                                service.realWait = service.estimatedWait;
+                                console.log(`✅ Service ${service.prefix}: ${waitingCount} waiting`);
+                            }
                         }
-                    });
-                    
-                    // Always re-render to show updates
-                    if (!isIssuing) {
-                        renderServices();
-                        updateLanguage(currentLanguage);
+                    } catch (error) {
+                        console.log(`⚠️ Error fetching queue for service ${service.id}:`, error.message);
+                        // Keep default zero values on error
                     }
-                } else {
-                    console.error('❌ Failed to fetch queue data:', response.status);
-                    resetServicesToDefaults();
+                }
+                
+                // Re-render with updated data
+                if (!isIssuing) {
                     renderServices();
                     updateLanguage(currentLanguage);
                 }
                 
             } catch (error) {
                 console.error('❌ Error loading queue data:', error);
-                resetServicesToDefaults();
-                renderServices();
-                updateLanguage(currentLanguage);
             }
         }
 
@@ -1117,8 +1092,6 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                     
                     <div class="service-icon">${service.icon}</div>
                     
-                    <div class="queue-number">${service.currentNumber}</div>
-                    
                     <div class="service-name" data-service-name="${service.id}">
                         ${service.name[currentLanguage]}
                     </div>
@@ -1161,7 +1134,7 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             `).join('');
         }
 
-        // Service Selection - FIXED IMPLEMENTATION
+        // Service Selection - Using relative URLs
         async function selectService(serviceId) {
             if (isIssuing) return;
             
@@ -1172,8 +1145,8 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             serviceCard.classList.add('loading');
             
             try {
-                // FIXED: Use correct server URL and endpoint
-                const response = await fetch(`${SERVER_URL}/api/ticket`, {
+                // Use relative URL - works in any environment
+                const response = await fetch('/api/ticket', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1185,24 +1158,51 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                 
                 if (response.ok) {
                     const result = await response.json();
+                    console.log('🎫 Ticket response:', result);
                     
                     serviceCard.classList.remove('loading');
                     serviceCard.classList.add('selected');
                     
-                    // Get ticket number and service info
-                    const ticketNumber = result.number || result.ticketNumber;
+                    // The response has success: true, ticket: {...} structure
+                    let ticketNumber = 'Unknown';
+                    let serviceName = 'Service';
+                    
+                    if (result.ticket) {
+                        // Extract from nested ticket object
+                        ticketNumber = result.ticket.number || result.ticket.ticketNumber || 'Unknown';
+                        serviceName = result.ticket.service_name || result.ticket.serviceName || serviceName;
+                    } else {
+                        // Try direct properties
+                        ticketNumber = result.number || result.ticketNumber || result.ticket_number || 'Unknown';
+                        serviceName = result.service_name || result.serviceName || serviceName;
+                    }
+                    
+                    // If still unknown, check for numbered format
+                    if (ticketNumber === 'Unknown' && result.message) {
+                        // Extract ticket number from message like "Ticket A003 issued successfully"
+                        const match = result.message.match(/Ticket\s+([A-Z]\d+)/i);
+                        if (match) {
+                            ticketNumber = match[1];
+                        }
+                    }
+                    
+                    // Get service name from our config if not in response
                     const service = kioskConfig.services.find(s => s.id === serviceId);
-                    const serviceName = service ? service.name[currentLanguage] : 'Service';
+                    if (service && serviceName === 'Service') {
+                        serviceName = service.name[currentLanguage];
+                    }
+                    
+                    console.log(`✅ Displaying ticket: ${ticketNumber} for ${serviceName}`);
                     
                     // Show success with actual ticket info
                     showPrintSuccess(ticketNumber, serviceName);
                     
-                    // FIXED: Print ticket using local print service
+                    // Print ticket using local print service
                     await printTicketLocally(ticketNumber, serviceName);
                     
                     // Update queue data
                     setTimeout(() => {
-                        updateServiceData(serviceId);
+                        loadServicesFromServer(); // Refresh queue counts
                         serviceCard.classList.remove('selected');
                         isIssuing = false;
                     }, 3000);
@@ -1249,42 +1249,31 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
 
         // Show Print Success Modal (with ticket info)
         function showPrintSuccess(ticketNumber, serviceName) {
+            console.log(`🎯 Showing success modal - Ticket: ${ticketNumber}, Service: ${serviceName}`);
+            
             const modal = document.getElementById('printSuccess');
             const ticketElement = document.getElementById('issuedTicket');
             const serviceElement = document.getElementById('issuedService');
             
-            ticketElement.textContent = ticketNumber;
-            
-            // Add service name display if element exists, otherwise create it
-            if (serviceElement) {
-                serviceElement.textContent = serviceName;
-            } else {
-                // Add service name to modal
-                const serviceDiv = document.createElement('div');
-                serviceDiv.className = 'success-service';
-                serviceDiv.textContent = serviceName;
-                serviceDiv.style.fontSize = '1.2rem';
-                serviceDiv.style.color = 'var(--text-secondary)';
-                serviceDiv.style.marginBottom = '16px';
-                ticketElement.parentNode.insertBefore(serviceDiv, ticketElement.nextSibling);
+            // Set the ticket number in modal - make sure it's visible
+            if (ticketElement) {
+                ticketElement.textContent = ticketNumber || 'ERROR';
+                ticketElement.style.display = 'block';
             }
             
+            // Set service name if element exists
+            if (serviceElement) {
+                serviceElement.textContent = serviceName || 'Service';
+                serviceElement.style.display = 'block';
+            }
+            
+            // Show the modal
             modal.classList.add('show');
             
+            // Hide after 4 seconds
             setTimeout(() => {
                 modal.classList.remove('show');
             }, 4000);
-        }
-
-        // Update Service Data
-        function updateServiceData(serviceId) {
-            const service = kioskConfig.services.find(s => s.id === serviceId);
-            service.queueCount += 1;
-            service.estimatedWait += 2;
-            service.realWait += 1;
-            
-            renderServices();
-            updateLanguage(currentLanguage);
         }
 
         // Language Management
@@ -1344,7 +1333,8 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
         function checkConnection() {
             setInterval(async () => {
                 try {
-                    const response = await fetch(`${SERVER_URL}/api/health`, { 
+                    // Use relative URL for health check
+                    const response = await fetch('/api/health', { 
                         method: 'GET',
                         mode: 'cors',
                         cache: 'no-cache'

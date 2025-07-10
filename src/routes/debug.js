@@ -62,19 +62,21 @@ router.post('/query', async (req, res) => {
         } else {
             // For UPDATE/INSERT/DELETE - use transaction
             await db.run('BEGIN TRANSACTION');
-            const result = await db.run(query);
-            await db.run('COMMIT');
-            res.json({ 
-                success: true, 
-                changes: result.changes,
-                lastID: result.lastID,
-                message: `Query executed successfully. Rows affected: ${result.changes}`
-            });
+            try {
+                const result = await db.run(query);
+                await db.run('COMMIT');
+                res.json({ 
+                    success: true, 
+                    changes: result.changes,
+                    lastID: result.lastID,
+                    message: `Query executed successfully. Rows affected: ${result.changes}`
+                });
+            } catch (innerError) {
+                await db.run('ROLLBACK');
+                throw innerError;
+            }
         }
     } catch (error) {
-        if (!isSelect) {
-            await db.run('ROLLBACK');
-        }
         res.status(500).json({ error: error.message });
     }
 });
@@ -87,21 +89,24 @@ router.post('/ticket/activate/:ticketId', async (req, res) => {
     
     try {
         await db.run('BEGIN TRANSACTION');
-        
-        const result = await db.run(
-            `UPDATE tickets SET state = ? WHERE id = ? AND state = ?`,
-            [STATES.WAITING, ticketId, STATES.ISSUED]
-        );
-        
-        await db.run('COMMIT');
-        
-        res.json({ 
-            success: true, 
-            message: `Ticket ${ticketId} activated to waiting state`,
-            changes: result.changes
-        });
+        try {
+            const result = await db.run(
+                `UPDATE tickets SET state = ? WHERE id = ? AND state = ?`,
+                [STATES.WAITING, ticketId, STATES.ISSUED]
+            );
+            
+            await db.run('COMMIT');
+            
+            res.json({ 
+                success: true, 
+                message: `Ticket ${ticketId} activated to waiting state`,
+                changes: result.changes
+            });
+        } catch (innerError) {
+            await db.run('ROLLBACK');
+            throw innerError;
+        }
     } catch (error) {
-        await db.run('ROLLBACK');
         res.status(500).json({ error: error.message });
     }
 });
@@ -112,23 +117,26 @@ router.post('/ticket/start-serving/:ticketId', async (req, res) => {
     
     try {
         await db.run('BEGIN TRANSACTION');
-        
-        const result = await db.run(
-            `UPDATE tickets 
-             SET state = ?, served_at = datetime('now') 
-             WHERE id = ? AND state = ?`,
-            [STATES.SERVING, ticketId, STATES.CALLED]
-        );
-        
-        await db.run('COMMIT');
-        
-        res.json({ 
-            success: true, 
-            message: `Ticket ${ticketId} moved to serving state`,
-            changes: result.changes
-        });
+        try {
+            const result = await db.run(
+                `UPDATE tickets 
+                 SET state = ?, served_at = datetime('now') 
+                 WHERE id = ? AND state = ?`,
+                [STATES.SERVING, ticketId, STATES.CALLED]
+            );
+            
+            await db.run('COMMIT');
+            
+            res.json({ 
+                success: true, 
+                message: `Ticket ${ticketId} moved to serving state`,
+                changes: result.changes
+            });
+        } catch (innerError) {
+            await db.run('ROLLBACK');
+            throw innerError;
+        }
     } catch (error) {
-        await db.run('ROLLBACK');
         res.status(500).json({ error: error.message });
     }
 });
@@ -137,49 +145,60 @@ router.post('/ticket/start-serving/:ticketId', async (req, res) => {
 router.post('/queue/activate-all', async (req, res) => {
     try {
         await db.run('BEGIN TRANSACTION');
-        
-        const result = await db.run(
-            `UPDATE tickets SET state = ? WHERE state = ?`,
-            [STATES.WAITING, STATES.ISSUED]
-        );
-        
-        await db.run('COMMIT');
-        
-        res.json({ 
-            success: true, 
-            message: `Activated ${result.changes} tickets to waiting state`,
-            changes: result.changes
-        });
+        try {
+            const result = await db.run(
+                `UPDATE tickets SET state = ? WHERE state = ?`,
+                [STATES.WAITING, STATES.ISSUED]
+            );
+            
+            await db.run('COMMIT');
+            
+            res.json({ 
+                success: true, 
+                message: `Activated ${result.changes} tickets to waiting state`,
+                changes: result.changes
+            });
+        } catch (innerError) {
+            await db.run('ROLLBACK');
+            throw innerError;
+        }
     } catch (error) {
-        await db.run('ROLLBACK');
         res.status(500).json({ error: error.message });
     }
 });
 
-// Reset entire queue (end all active tickets)
+// Reset entire queue (end all active tickets) - FIXED: No nested transactions
 router.post('/queue/reset-all', async (req, res) => {
     try {
-        await db.run('BEGIN TRANSACTION');
+        // No manual transaction management - let each statement be atomic
         
         // End all active tickets
         const result = await db.run(`
             UPDATE tickets 
-            SET state = ?, ended_at = datetime('now') 
+            SET state = ?, ended_at = datetime('now'), is_no_show = 1
             WHERE state IN (?, ?, ?, ?)
         `, [STATES.ENDED, STATES.ISSUED, STATES.WAITING, STATES.CALLED, STATES.SERVING]);
         
         // Reset service counters
         await db.run(`UPDATE services SET current_number = 0`);
         
-        await db.run('COMMIT');
+        // Get stats for response
+        const stats = await db.get(`
+            SELECT 
+                (SELECT COUNT(*) FROM tickets WHERE DATE(issued_at) = DATE('now')) as today_total,
+                (SELECT COUNT(*) FROM tickets WHERE state = 'ended' AND DATE(issued_at) = DATE('now')) as ended_today
+        `);
         
         res.json({ 
             success: true, 
             message: `Reset complete. Ended ${result.changes} active tickets`,
-            changes: result.changes
+            changes: result.changes,
+            stats: {
+                tickets_ended: stats.ended_today,
+                total_today: stats.today_total
+            }
         });
     } catch (error) {
-        await db.run('ROLLBACK');
         res.status(500).json({ error: error.message });
     }
 });
@@ -190,38 +209,41 @@ router.post('/queue/create-test-data', async (req, res) => {
     
     try {
         await db.run('BEGIN TRANSACTION');
-        
-        const tickets = [];
-        for (let i = 0; i < count; i++) {
-            // Get next number
-            const service = await db.getOne('SELECT * FROM services WHERE id = ?', [service_id]);
-            const nextNumber = (service.current_number || 0) + 1;
-            const ticketNumber = `${service.prefix}${String(nextNumber).padStart(3, '0')}`;
+        try {
+            const tickets = [];
+            for (let i = 0; i < count; i++) {
+                // Get next number
+                const service = await db.getOne('SELECT * FROM services WHERE id = ?', [service_id]);
+                const nextNumber = (service.current_number || 0) + 1;
+                const ticketNumber = `${service.prefix}${String(nextNumber).padStart(3, '0')}`;
+                
+                // Create ticket directly in waiting state
+                const result = await db.run(`
+                    INSERT INTO tickets (number, state, service_id, issued_at)
+                    VALUES (?, ?, ?, datetime('now'))
+                `, [ticketNumber, STATES.WAITING, service_id]);
+                
+                // Update service counter
+                await db.run(
+                    'UPDATE services SET current_number = ? WHERE id = ?',
+                    [nextNumber, service_id]
+                );
+                
+                tickets.push({ id: result.lastID, number: ticketNumber });
+            }
             
-            // Create ticket directly in waiting state
-            const result = await db.run(`
-                INSERT INTO tickets (number, state, service_id, issued_at)
-                VALUES (?, ?, ?, datetime('now'))
-            `, [ticketNumber, STATES.WAITING, service_id]);
+            await db.run('COMMIT');
             
-            // Update service counter
-            await db.run(
-                'UPDATE services SET current_number = ? WHERE id = ?',
-                [nextNumber, service_id]
-            );
-            
-            tickets.push({ id: result.lastID, number: ticketNumber });
+            res.json({ 
+                success: true, 
+                message: `Created ${count} test tickets in waiting state`,
+                tickets: tickets
+            });
+        } catch (innerError) {
+            await db.run('ROLLBACK');
+            throw innerError;
         }
-        
-        await db.run('COMMIT');
-        
-        res.json({ 
-            success: true, 
-            message: `Created ${count} test tickets in waiting state`,
-            tickets: tickets
-        });
     } catch (error) {
-        await db.run('ROLLBACK');
         res.status(500).json({ error: error.message });
     }
 });
@@ -233,42 +255,45 @@ router.post('/ticket/auto-flow/:ticketId', async (req, res) => {
     
     try {
         await db.run('BEGIN TRANSACTION');
-        
-        const ticket = await db.getOne('SELECT * FROM tickets WHERE id = ?', [ticketId]);
-        if (!ticket) {
-            throw new Error('Ticket not found');
+        try {
+            const ticket = await db.getOne('SELECT * FROM tickets WHERE id = ?', [ticketId]);
+            if (!ticket) {
+                throw new Error('Ticket not found');
+            }
+            
+            let updates = 0;
+            
+            // Move through states as needed
+            if (ticket.state === STATES.ISSUED && [STATES.WAITING, STATES.CALLED, STATES.SERVING].includes(targetState)) {
+                await db.run('UPDATE tickets SET state = ? WHERE id = ?', [STATES.WAITING, ticketId]);
+                updates++;
+            }
+            
+            if (ticket.state === STATES.WAITING && [STATES.CALLED, STATES.SERVING].includes(targetState)) {
+                await db.run('UPDATE tickets SET state = ?, called_at = datetime("now") WHERE id = ?', [STATES.CALLED, ticketId]);
+                updates++;
+            }
+            
+            if ([ticket.state, STATES.CALLED].includes(ticket.state) && targetState === STATES.SERVING) {
+                await db.run('UPDATE tickets SET state = ?, served_at = datetime("now") WHERE id = ?', [STATES.SERVING, ticketId]);
+                updates++;
+            }
+            
+            await db.run('COMMIT');
+            
+            const updatedTicket = await db.getOne('SELECT * FROM tickets WHERE id = ?', [ticketId]);
+            
+            res.json({ 
+                success: true, 
+                message: `Ticket ${ticket.number} auto-flowed to ${targetState}`,
+                updates: updates,
+                ticket: updatedTicket
+            });
+        } catch (innerError) {
+            await db.run('ROLLBACK');
+            throw innerError;
         }
-        
-        let updates = 0;
-        
-        // Move through states as needed
-        if (ticket.state === STATES.ISSUED && [STATES.WAITING, STATES.CALLED, STATES.SERVING].includes(targetState)) {
-            await db.run('UPDATE tickets SET state = ? WHERE id = ?', [STATES.WAITING, ticketId]);
-            updates++;
-        }
-        
-        if (ticket.state === STATES.WAITING && [STATES.CALLED, STATES.SERVING].includes(targetState)) {
-            await db.run('UPDATE tickets SET state = ?, called_at = datetime("now") WHERE id = ?', [STATES.CALLED, ticketId]);
-            updates++;
-        }
-        
-        if ([ticket.state, STATES.CALLED].includes(ticket.state) && targetState === STATES.SERVING) {
-            await db.run('UPDATE tickets SET state = ?, served_at = datetime("now") WHERE id = ?', [STATES.SERVING, ticketId]);
-            updates++;
-        }
-        
-        await db.run('COMMIT');
-        
-        const updatedTicket = await db.getOne('SELECT * FROM tickets WHERE id = ?', [ticketId]);
-        
-        res.json({ 
-            success: true, 
-            message: `Ticket ${ticket.number} auto-flowed to ${targetState}`,
-            updates: updates,
-            ticket: updatedTicket
-        });
     } catch (error) {
-        await db.run('ROLLBACK');
         res.status(500).json({ error: error.message });
     }
 });
