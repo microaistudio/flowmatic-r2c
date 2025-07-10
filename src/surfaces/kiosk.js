@@ -13,6 +13,9 @@ const path = require('path');
 const router = express.Router();
 const db = require('../database/connection');
 
+// Print service configuration
+const PRINT_SERVICE_URL = process.env.PRINT_SERVICE_URL || 'http://localhost:3001';
+
 // ===================================================================
 // KIOSK CONFIGURATION & SETTINGS
 // ===================================================================
@@ -140,7 +143,7 @@ async function getKioskConfiguration() {
 // TICKET ISSUANCE LOGIC
 // ===================================================================
 
-async function issueKioskTicket(serviceId, language = 'en', deviceInfo = {}) {
+async function issueKioskTicket(serviceId, language = 'en', deviceInfo = {}, req = null) {
     return new Promise(async (resolve, reject) => {
         // Start exclusive transaction for ticket generation
         await db.run('BEGIN EXCLUSIVE TRANSACTION');
@@ -225,27 +228,34 @@ async function issueKioskTicket(serviceId, language = 'en', deviceInfo = {}) {
             // Commit transaction first
             await db.run('COMMIT');
 
-            // PRINT TICKET (Same as Debug Console pattern)
+            // PRINT TICKET TO PRINT SERVICE ON PORT 3001
             try {
-                // Call existing printer endpoint (same as console uses)
-                const printerResponse = await fetch(`http://localhost:${process.env.PORT || 5050}/api/printer/print`, {
+                const printPayload = {
+                    ticketNumber: ticketNumber,
+                    serviceName: service.name,
+                    queuePosition: queueCount.count + 1,
+                    estimatedWait: estimatedWait,
+                    timestamp: new Date().toISOString(),
+                    language: language,
+                    servicePrefix: service.prefix,
+                    ticketId: ticketId,
+                    source: 'kiosk'
+                };
+                
+                console.log(`🖨️ Sending to print service at ${PRINT_SERVICE_URL}:`, printPayload);
+                
+                const printerResponse = await fetch(`${PRINT_SERVICE_URL}/print`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({
-                        ticketNumber: ticketNumber,
-                        serviceName: service.name,
-                        queuePosition: queueCount.count + 1,
-                        estimatedWait: estimatedWait,
-                        timestamp: new Date().toISOString(),
-                        language: language
-                    })
+                    body: JSON.stringify(printPayload)
                 });
 
                 if (printerResponse.ok) {
-                    console.log(`✅ Ticket ${ticketNumber} printed successfully`);
+                    const printResult = await printerResponse.json();
+                    console.log(`✅ Ticket ${ticketNumber} printed successfully:`, printResult);
                     
                     // Mark as printed in database
                     await db.run(`
@@ -254,16 +264,17 @@ async function issueKioskTicket(serviceId, language = 'en', deviceInfo = {}) {
                         WHERE id = ?
                     `, [ticketId]);
                 } else {
-                    console.error(`❌ Printer failed for ticket ${ticketNumber}:`, await printerResponse.text());
+                    const errorText = await printerResponse.text();
+                    console.error(`❌ Print service error for ticket ${ticketNumber}:`, errorText);
                     // Still return success - ticket was created, just printing failed
                 }
             } catch (printerError) {
-                console.error(`❌ Printer error for ticket ${ticketNumber}:`, printerError.message);
+                console.error(`❌ Failed to reach print service for ticket ${ticketNumber}:`, printerError.message);
                 // Still return success - ticket was created, just printing failed
             }
 
             // Emit real-time update
-            const io = req.app.get('io'); // Get Socket.IO instance from app
+            const io = req && req.app ? req.app.get('io') : null;
             if (io) {
                 io.emit('ticket:issued', {
                     ticketNumber,
@@ -381,9 +392,12 @@ router.get('/api/config', async (req, res) => {
 // Issue ticket from kiosk
 router.post('/api/ticket', async (req, res) => {
     try {
-        const { serviceId, language = 'en' } = req.body;
+        const { serviceId, service_id, language = 'en' } = req.body;
         
-        if (!serviceId) {
+        // Support both serviceId and service_id
+        const actualServiceId = serviceId || service_id;
+        
+        if (!actualServiceId) {
             return res.status(400).json({ 
                 error: 'Service ID is required' 
             });
@@ -396,7 +410,7 @@ router.post('/api/ticket', async (req, res) => {
             userAgent: req.headers['user-agent'] || 'unknown'
         };
 
-        const result = await issueKioskTicket(serviceId, language, deviceInfo);
+        const result = await issueKioskTicket(actualServiceId, language, deviceInfo, req);
         res.json(result);
 
     } catch (error) {
@@ -411,7 +425,7 @@ router.post('/api/ticket', async (req, res) => {
 // Get real-time queue status
 router.get('/api/queue', async (req, res) => {
     try {
-        const { serviceId } = req.query; // Change from :serviceId? to query parameter
+        const { serviceId } = req.query;
         
         let query = `
             SELECT 
@@ -453,7 +467,7 @@ router.get('/api/queue', async (req, res) => {
     }
 });
 
-// Add specific route for single service (alternative)
+// Add specific route for single service
 router.get('/api/queue/:serviceId', async (req, res) => {
     try {
         const { serviceId } = req.params;
@@ -566,7 +580,7 @@ router.post('/api/settings', async (req, res) => {
         ]);
 
         // Emit settings update to all connected kiosks
-        const io = req.app.get('io'); // Get Socket.IO instance from app
+        const io = req.app.get('io');
         if (io) {
             io.emit('kiosk:settings-updated', {
                 globalLanguage,
@@ -590,6 +604,56 @@ router.post('/api/settings', async (req, res) => {
         res.status(500).json({ 
             error: 'Failed to update kiosk settings',
             message: error.message 
+        });
+    }
+});
+
+// Test print endpoint (for debugging)
+router.post('/api/test-print', async (req, res) => {
+    try {
+        const testPayload = {
+            ticketNumber: 'TEST001',
+            serviceName: 'Test Service',
+            queuePosition: 1,
+            estimatedWait: 5,
+            timestamp: new Date().toISOString(),
+            language: 'en',
+            source: 'kiosk-test'
+        };
+        
+        console.log(`🖨️ Testing print service at ${PRINT_SERVICE_URL}`);
+        
+        const response = await fetch(`${PRINT_SERVICE_URL}/print`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(testPayload)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            res.json({ 
+                success: true, 
+                message: 'Test print sent successfully',
+                result 
+            });
+        } else {
+            const error = await response.text();
+            res.status(500).json({ 
+                success: false, 
+                error: 'Print service error',
+                details: error 
+            });
+        }
+    } catch (error) {
+        console.error('Test print error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to reach print service',
+            message: error.message,
+            printServiceUrl: PRINT_SERVICE_URL
         });
     }
 });
