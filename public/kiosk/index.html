@@ -441,22 +441,67 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
         /* AIO Landscape Special */
         @media (width: 1366px) and (height: 768px) {
             .kiosk-container {
-                padding: 20px 40px;
-            }
-            
-            .services-grid.count-4 {
-                grid-template-columns: repeat(4, 1fr);
-                grid-template-rows: 1fr;
-                max-width: 1200px;
-            }
-            
-            .service-card {
-                min-height: 160px;
-                padding: 20px;
+                padding: 15px 30px;
             }
             
             .welcome-section {
-                margin-bottom: 20px;
+                margin-bottom: 15px;
+            }
+            
+            .welcome-title {
+                font-size: 1.5rem;
+                margin-bottom: 4px;
+            }
+            
+            .welcome-subtitle {
+                font-size: 1rem;
+            }
+            
+            .services-grid.count-4 {
+                grid-template-columns: repeat(4, 1fr); /* 4 in one row */
+                grid-template-rows: 1fr;
+                max-width: 1300px;
+                gap: 15px;
+            }
+            
+            .service-card {
+                min-height: 140px;
+                padding: 16px;
+            }
+            
+            .service-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 24px;
+                margin-bottom: 8px;
+            }
+            
+            .service-name {
+                font-size: 1rem;
+                margin-bottom: 8px;
+            }
+            
+            .queue-number {
+                font-size: 1.3rem;
+                margin-bottom: 6px;
+            }
+            
+            .metric-value {
+                font-size: 1.1rem;
+            }
+            
+            .metric-label {
+                font-size: 0.7rem;
+            }
+            
+            .kiosk-footer {
+                margin-top: 15px;
+                padding: 10px 0;
+            }
+            
+            .promotion-banner {
+                padding: 12px 20px;
+                margin-bottom: 10px;
             }
         }
 

@@ -157,12 +157,11 @@ async function issueKioskTicket(serviceId, language = 'en', deviceInfo = {}) {
                 throw new Error('Service not found or inactive');
             }
 
-            // Get next ticket number
+            // Get next ticket number (SAME AS CONSOLE LOGIC)
             const nextNumber = await db.get(`
-                SELECT COALESCE(MAX(CAST(SUBSTR(number, 2) AS INTEGER)), 0) + 1 as next_num
-                FROM tickets 
-                WHERE service_id = ? 
-                AND DATE(issued_at) = DATE('now')
+                SELECT COALESCE(current_number, 0) + 1 as next_num
+                FROM services 
+                WHERE id = ?
             `, [serviceId]);
 
             const ticketNumber = `${service.prefix}${String(nextNumber.next_num).padStart(3, '0')}`;
