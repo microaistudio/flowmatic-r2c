@@ -956,7 +956,10 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             updateDateTime();
             setInterval(updateDateTime, 1000);
             
-            // Render with initial values first
+            // Clear any hardcoded values first
+            resetServicesToDefaults();
+            
+            // Render with zero values
             renderServices();
             setupEventListeners();
             updateLanguage(currentLanguage);
@@ -971,85 +974,80 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             setInterval(loadServicesFromServer, 5000);
         }
 
+        // Reset services to default zero values
+        function resetServicesToDefaults() {
+            kioskConfig.services.forEach(service => {
+                service.currentNumber = `${service.prefix}001`;
+                service.queueCount = 0;
+                service.estimatedWait = 0;
+                service.realWait = 0;
+            });
+        }
+
         // Load services from server with real queue data
         async function loadServicesFromServer() {
             try {
                 console.log('🔄 Fetching latest queue data...');
                 
-                // First, try to get queue status which has real-time data
-                const queueResponse = await fetch(`${SERVER_URL}/api/queue`);
+                // Get queue status from the server
+                const response = await fetch(`${SERVER_URL}/api/queue`);
                 
-                if (queueResponse.ok) {
-                    const data = await queueResponse.json();
+                if (response.ok) {
+                    const data = await response.json();
                     const queues = data.queues || data;
                     
-                    console.log('📊 Queue data received:', queues);
+                    console.log('📊 Raw queue data:', data);
                     
-                    // Update each service with real data
-                    kioskConfig.services = kioskConfig.services.map(service => {
-                        // Find the queue data for this service
-                        const queueInfo = queues.find(q => 
-                            q.service_id === service.id || 
-                            q.service_name?.includes(service.prefix)
-                        );
+                    // Process each service
+                    kioskConfig.services.forEach((service, index) => {
+                        // Find matching queue data
+                        let queueInfo = null;
                         
-                        if (queueInfo) {
-                            // Update with real values
-                            const currentNumber = queueInfo.current_number || `${service.prefix}001`;
-                            const waitingCount = queueInfo.waiting_count || 0;
-                            const calledCount = queueInfo.called_count || 0;
-                            const servingCount = queueInfo.serving_count || 0;
-                            
-                            // Calculate estimated wait time (3 minutes per person)
-                            const estimatedWait = waitingCount * 3;
-                            
-                            console.log(`✅ Service ${service.prefix}: ${currentNumber}, Waiting: ${waitingCount}`);
-                            
-                            return {
-                                ...service,
-                                currentNumber: currentNumber,
-                                queueCount: waitingCount,
-                                estimatedWait: estimatedWait,
-                                realWait: estimatedWait
-                            };
+                        // Try different ways to match the queue data
+                        if (Array.isArray(queues)) {
+                            queueInfo = queues.find(q => 
+                                q.service_id === service.id ||
+                                q.service_name?.includes(service.prefix) ||
+                                q.prefix === service.prefix
+                            );
                         }
                         
-                        // If no queue data found, reset to defaults
-                        console.log(`⚠️ No queue data for service ${service.prefix}, using defaults`);
-                        return {
-                            ...service,
-                            currentNumber: `${service.prefix}001`,
-                            queueCount: 0,
-                            estimatedWait: 0,
-                            realWait: 0
-                        };
+                        if (queueInfo) {
+                            // Use real data from server
+                            service.currentNumber = queueInfo.current_number || `${service.prefix}001`;
+                            service.queueCount = parseInt(queueInfo.waiting_count) || 0;
+                            service.estimatedWait = service.queueCount * 3;
+                            service.realWait = service.estimatedWait;
+                            
+                            console.log(`✅ Updated ${service.prefix}: ${service.currentNumber}, Waiting: ${service.queueCount}`);
+                        } else {
+                            // No data - show zeros
+                            service.currentNumber = `${service.prefix}001`;
+                            service.queueCount = 0;
+                            service.estimatedWait = 0;
+                            service.realWait = 0;
+                            
+                            console.log(`⚠️ No data for ${service.prefix} - showing zeros`);
+                        }
                     });
                     
-                    // Re-render with updated data
+                    // Always re-render to show updates
                     if (!isIssuing) {
                         renderServices();
                         updateLanguage(currentLanguage);
                     }
                 } else {
-                    console.error('❌ Failed to fetch queue data:', queueResponse.status);
+                    console.error('❌ Failed to fetch queue data:', response.status);
+                    resetServicesToDefaults();
+                    renderServices();
+                    updateLanguage(currentLanguage);
                 }
                 
             } catch (error) {
                 console.error('❌ Error loading queue data:', error);
-                
-                // On error, show zero values
-                kioskConfig.services = kioskConfig.services.map(service => ({
-                    ...service,
-                    currentNumber: `${service.prefix}001`,
-                    queueCount: 0,
-                    estimatedWait: 0,
-                    realWait: 0
-                }));
-                
-                if (!isIssuing) {
-                    renderServices();
-                    updateLanguage(currentLanguage);
-                }
+                resetServicesToDefaults();
+                renderServices();
+                updateLanguage(currentLanguage);
             }
         }
 
