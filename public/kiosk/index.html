@@ -779,6 +779,10 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
     </div>
 
     <script>
+        // FIXED: Server Configuration for proper communication
+        const SERVER_URL = 'http://34.128.86.132:8080'; // Remote VM server
+        const PRINT_SERVICE_URL = 'http://localhost:3001'; // Local print service
+        
         // Kiosk Configuration & Data
         const kioskConfig = {
             // Global language settings (from system admin)
@@ -921,8 +925,47 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             // Show/hide language selector based on admin settings
             toggleLanguageSelector();
             
-            // Simulate real-time updates
-            setInterval(updateQueueData, 5000);
+            // Load real-time data from server
+            loadServicesFromServer();
+            
+            // Update data every 5 seconds
+            setInterval(loadServicesFromServer, 5000);
+        }
+
+        // Load services from server
+        async function loadServicesFromServer() {
+            try {
+                // Try to load from server
+                const response = await fetch(`${SERVER_URL}/api/services`);
+                if (response.ok) {
+                    const serverServices = await response.json();
+                    
+                    // Merge server data with local config
+                    if (Array.isArray(serverServices) && serverServices.length > 0) {
+                        kioskConfig.services = kioskConfig.services.map((localService, index) => {
+                            const serverService = serverServices.find(s => s.id === localService.id) || serverServices[index];
+                            if (serverService) {
+                                return {
+                                    ...localService,
+                                    currentNumber: serverService.current_number || localService.currentNumber,
+                                    queueCount: serverService.queue_count || 0,
+                                    estimatedWait: serverService.estimated_wait || 5,
+                                    realWait: serverService.real_wait || serverService.estimated_wait || 5
+                                };
+                            }
+                            return localService;
+                        });
+                        
+                        if (!isIssuing) {
+                            renderServices();
+                            updateLanguage(currentLanguage);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading services from server:', error);
+                // Continue with local data
+            }
         }
 
         // Load global language settings
@@ -1035,7 +1078,7 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             `).join('');
         }
 
-        // Service Selection
+        // Service Selection - FIXED IMPLEMENTATION
         async function selectService(serviceId) {
             if (isIssuing) return;
             
@@ -1046,8 +1089,8 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             serviceCard.classList.add('loading');
             
             try {
-                // Use same endpoint as console
-                const response = await fetch('/api/ticket', {
+                // FIXED: Use correct server URL and endpoint
+                const response = await fetch(`${SERVER_URL}/api/ticket`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1063,11 +1106,16 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                     serviceCard.classList.remove('loading');
                     serviceCard.classList.add('selected');
                     
-                    // Show success with actual ticket info
-                    showPrintSuccess(result.number, result.service_name);
+                    // Get ticket number and service info
+                    const ticketNumber = result.number || result.ticketNumber;
+                    const service = kioskConfig.services.find(s => s.id === serviceId);
+                    const serviceName = service ? service.name[currentLanguage] : 'Service';
                     
-                    // Print ticket automatically (same as console button)
-                    await printTicket(result.number, result.service_name);
+                    // Show success with actual ticket info
+                    showPrintSuccess(ticketNumber, serviceName);
+                    
+                    // FIXED: Print ticket using local print service
+                    await printTicketLocally(ticketNumber, serviceName);
                     
                     // Update queue data
                     setTimeout(() => {
@@ -1086,35 +1134,33 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
         }
 
-        // Print ticket function (use correct endpoint)
-        async function printTicket(ticketNumber, serviceName) {
+        // FIXED: Print ticket using local print service
+        async function printTicketLocally(ticketNumber, serviceName) {
             try {
-                // First check what printer endpoints exist
-                const endpoints = [
-                    '/api/printer/test',
-                    '/api/printer/print-ticket',
-                    '/api/printer'
-                ];
+                console.log(`🖨️ Printing ticket ${ticketNumber} to local print service at ${PRINT_SERVICE_URL}`);
                 
-                // Try the most likely endpoint first
-                const printResponse = await fetch('/api/printer/test', {
+                // Call the local print service
+                const response = await fetch(`${PRINT_SERVICE_URL}/print`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
-                        number: ticketNumber,
-                        service: serviceName,
+                        ticketNumber: ticketNumber,
+                        serviceName: serviceName,
                         timestamp: new Date().toISOString(),
                         source: 'kiosk'
                     })
                 });
-                
-                if (printResponse.ok) {
-                    console.log(`✅ Ticket ${ticketNumber} printed successfully from kiosk`);
+
+                if (response.ok) {
+                    console.log(`✅ Ticket ${ticketNumber} printed successfully on local printer`);
                 } else {
-                    console.error(`❌ Print failed for ticket ${ticketNumber}:`, await printResponse.text());
+                    console.error(`❌ Local print failed:`, await response.text());
                 }
             } catch (error) {
-                console.error(`❌ Print error for ticket ${ticketNumber}:`, error);
+                console.error(`❌ Cannot reach local print service:`, error);
+                // Continue anyway - ticket was created even if printing failed
             }
         }
 
@@ -1211,33 +1257,31 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             });
         }
 
-        // Simulate real-time queue updates
-        function updateQueueData() {
-            kioskConfig.services.forEach(service => {
-                // Simulate queue changes
-                if (Math.random() > 0.7) {
-                    const change = Math.random() > 0.5 ? 1 : -1;
-                    service.queueCount = Math.max(0, service.queueCount + change);
-                    service.estimatedWait = Math.max(1, service.estimatedWait + change);
-                    service.realWait = Math.max(1, service.realWait + change);
-                }
-            });
-            
-            if (!isIssuing) {
-                renderServices();
-                updateLanguage(currentLanguage);
-            }
-        }
-
-        // Connection status simulation
-        function simulateConnection() {
-            setInterval(() => {
-                const wasOnline = isOnline;
-                isOnline = Math.random() > 0.1; // 90% uptime
-                
-                if (wasOnline !== isOnline) {
-                    const indicator = document.getElementById('offlineIndicator');
-                    indicator.classList.toggle('show', !isOnline);
+        // Connection status check
+        function checkConnection() {
+            setInterval(async () => {
+                try {
+                    const response = await fetch(`${SERVER_URL}/api/health`, { 
+                        method: 'GET',
+                        mode: 'cors',
+                        cache: 'no-cache'
+                    });
+                    
+                    const wasOnline = isOnline;
+                    isOnline = response.ok;
+                    
+                    if (wasOnline !== isOnline) {
+                        const indicator = document.getElementById('offlineIndicator');
+                        indicator.classList.toggle('show', !isOnline);
+                    }
+                } catch (error) {
+                    const wasOnline = isOnline;
+                    isOnline = false;
+                    
+                    if (wasOnline !== isOnline) {
+                        const indicator = document.getElementById('offlineIndicator');
+                        indicator.classList.toggle('show', !isOnline);
+                    }
                 }
             }, 10000);
         }
@@ -1245,7 +1289,7 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', () => {
             initializeKiosk();
-            simulateConnection();
+            checkConnection();
         });
     </script>
 </body>
