@@ -438,14 +438,20 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
         }
 
-        /* AIO 1366×768 - AGGRESSIVE FIX FOR TRUNCATION */
+        /* AIO 1366×768 - EXTREME COMPRESSION */
         @media (width: 1366px) and (height: 768px) {
+            * {
+                box-sizing: border-box;
+            }
+            
             body {
                 overflow: hidden;
+                margin: 0;
+                padding: 0;
             }
             
             .kiosk-container {
-                padding: 5px 15px;
+                padding: 2px 10px;
                 height: 768px;
                 max-height: 768px;
                 display: flex;
@@ -454,54 +460,59 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
             
             .kiosk-header {
-                padding: 4px 0;
-                margin-bottom: 4px;
+                padding: 2px 0;
+                margin-bottom: 2px;
+                flex-shrink: 0;
+                height: 50px;
+                max-height: 50px;
+            }
+            
+            .logo {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+            
+            .logo-section .system-title {
+                font-size: 0.9rem;
+                line-height: 1;
+            }
+            
+            .logo-section .system-subtitle {
+                font-size: 0.6rem;
+                line-height: 1;
+            }
+            
+            .time-display {
+                font-size: 0.8rem;
+                line-height: 1;
+            }
+            
+            .date-display {
+                font-size: 0.6rem;
+                line-height: 1;
+            }
+            
+            .language-selector {
+                display: none;
+            }
+            
+            .welcome-section {
+                margin-bottom: 2px;
                 flex-shrink: 0;
                 height: 60px;
                 max-height: 60px;
             }
             
-            .logo {
-                width: 36px;
-                height: 36px;
-                font-size: 18px;
-            }
-            
-            .logo-section .system-title {
-                font-size: 1rem;
-            }
-            
-            .logo-section .system-subtitle {
-                font-size: 0.7rem;
-            }
-            
-            .time-display {
-                font-size: 0.9rem;
-            }
-            
-            .date-display {
-                font-size: 0.7rem;
-            }
-            
-            .lang-btn {
-                padding: 6px 12px;
-                font-size: 0.75rem;
-            }
-            
-            .welcome-section {
-                margin-bottom: 4px;
-                flex-shrink: 0;
-                height: 80px;
-                max-height: 80px;
-            }
-            
             .welcome-title {
-                font-size: 1.2rem;
-                margin-bottom: 2px;
+                font-size: 1.1rem;
+                margin-bottom: 1px;
+                line-height: 1.1;
             }
             
             .welcome-subtitle {
-                font-size: 0.85rem;
+                font-size: 0.75rem;
+                line-height: 1.1;
             }
             
             .main-content {
@@ -510,52 +521,54 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                 flex-direction: column;
                 justify-content: center;
                 min-height: 0;
-                max-height: 500px;
+                max-height: 600px;
             }
             
             .services-grid {
-                margin-bottom: 4px;
+                margin-bottom: 2px;
                 flex-shrink: 0;
             }
             
             .services-grid.count-4 {
                 grid-template-columns: repeat(4, 1fr);
                 grid-template-rows: 1fr;
-                max-width: 1340px;
-                gap: 8px;
+                max-width: 1350px;
+                gap: 6px;
                 margin: 0 auto;
-                height: 400px;
-                max-height: 400px;
+                height: 380px;
+                max-height: 380px;
             }
             
             .service-card {
-                min-height: 100px;
-                max-height: 100px;
-                padding: 8px;
+                min-height: 90px;
+                max-height: 90px;
+                padding: 6px;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
                 overflow: hidden;
+                border-radius: 8px;
             }
             
             .service-icon {
-                width: 32px;
-                height: 32px;
-                font-size: 16px;
-                margin: 0 auto 4px auto;
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+                margin: 0 auto 2px auto;
                 flex-shrink: 0;
+                border-radius: 8px;
             }
             
             .queue-number {
-                font-size: 1rem;
-                margin-bottom: 2px;
+                font-size: 0.9rem;
+                margin-bottom: 1px;
                 line-height: 1;
                 flex-shrink: 0;
             }
             
             .service-name {
-                font-size: 0.75rem;
-                margin-bottom: 4px;
+                font-size: 0.65rem;
+                margin-bottom: 2px;
                 line-height: 1;
                 flex-shrink: 0;
                 text-align: center;
@@ -563,47 +576,53 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             
             .service-metrics {
                 margin-top: auto;
-                gap: 4px;
+                gap: 2px;
                 flex-shrink: 0;
+            }
+            
+            .metric {
+                flex: 1;
+                text-align: center;
+                min-width: 0;
             }
             
             .metric-value {
-                font-size: 0.8rem;
+                font-size: 0.7rem;
                 line-height: 1;
+                display: block;
             }
             
             .metric-label {
-                font-size: 0.55rem;
+                font-size: 0.45rem;
                 margin-top: 1px;
+                line-height: 1;
+                text-transform: uppercase;
             }
             
             .instructions {
-                font-size: 0.7rem;
-                margin-bottom: 4px;
+                font-size: 0.6rem;
+                margin-bottom: 2px;
                 flex-shrink: 0;
+                line-height: 1.1;
             }
             
             .kiosk-footer {
                 margin-top: auto;
-                padding: 4px 0;
+                padding: 2px 0;
                 flex-shrink: 0;
-                height: 60px;
-                max-height: 60px;
+                height: 40px;
+                max-height: 40px;
             }
             
             .promotion-banner {
-                padding: 6px 12px;
-                margin-bottom: 4px;
+                padding: 4px 8px;
+                margin-bottom: 2px;
+                border-radius: 6px;
             }
             
             .promotion-text {
-                font-size: 0.7rem;
-                line-height: 1.2;
-            }
-            
-            /* Hide language selector on small screens */
-            .language-selector {
-                display: none;
+                font-size: 0.6rem;
+                line-height: 1.1;
             }
         }
 
@@ -752,6 +771,7 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
     <div class="print-success" id="printSuccess">
         <div class="success-icon">✓</div>
         <div class="success-title" data-i18n="success.title">Ticket Issued Successfully!</div>
+        <div class="success-service" id="issuedService">General Service</div>
         <div class="success-ticket" id="issuedTicket">A047</div>
         <div class="success-message" data-i18n="success.message">
             Please take your printed ticket and wait for your number to be called.
@@ -1066,10 +1086,18 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
         }
 
-        // Print ticket function (same as console)
+        // Print ticket function (use correct endpoint)
         async function printTicket(ticketNumber, serviceName) {
             try {
-                const printResponse = await fetch('/api/printer/print', {
+                // First check what printer endpoints exist
+                const endpoints = [
+                    '/api/printer/test',
+                    '/api/printer/print-ticket',
+                    '/api/printer'
+                ];
+                
+                // Try the most likely endpoint first
+                const printResponse = await fetch('/api/printer/test', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1083,7 +1111,7 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                 if (printResponse.ok) {
                     console.log(`✅ Ticket ${ticketNumber} printed successfully from kiosk`);
                 } else {
-                    console.error(`❌ Print failed for ticket ${ticketNumber}`);
+                    console.error(`❌ Print failed for ticket ${ticketNumber}:`, await printResponse.text());
                 }
             } catch (error) {
                 console.error(`❌ Print error for ticket ${ticketNumber}:`, error);
