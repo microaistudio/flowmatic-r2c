@@ -438,8 +438,8 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
         }
 
-        /* AIO 1366×768 - EXTREME COMPRESSION */
-        @media (width: 1366px) and (height: 768px) {
+        /* AIO 1366×768 - Optimized Layout */
+        @media (max-width: 1366px) and (max-height: 768px) {
             * {
                 box-sizing: border-box;
             }
@@ -451,7 +451,7 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
             
             .kiosk-container {
-                padding: 2px 10px;
+                padding: 10px 20px;
                 height: 768px;
                 max-height: 768px;
                 display: flex;
@@ -460,59 +460,66 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
             
             .kiosk-header {
-                padding: 2px 0;
-                margin-bottom: 2px;
-                flex-shrink: 0;
-                height: 50px;
-                max-height: 50px;
-            }
-            
-            .logo {
-                width: 32px;
-                height: 32px;
-                font-size: 16px;
-            }
-            
-            .logo-section .system-title {
-                font-size: 0.9rem;
-                line-height: 1;
-            }
-            
-            .logo-section .system-subtitle {
-                font-size: 0.6rem;
-                line-height: 1;
-            }
-            
-            .time-display {
-                font-size: 0.8rem;
-                line-height: 1;
-            }
-            
-            .date-display {
-                font-size: 0.6rem;
-                line-height: 1;
-            }
-            
-            .language-selector {
-                display: none;
-            }
-            
-            .welcome-section {
-                margin-bottom: 2px;
+                padding: 10px 0;
+                margin-bottom: 10px;
                 flex-shrink: 0;
                 height: 60px;
                 max-height: 60px;
             }
             
-            .welcome-title {
+            .logo {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            
+            .logo-section .system-title {
+                font-size: 1.2rem;
+                line-height: 1.2;
+            }
+            
+            .logo-section .system-subtitle {
+                font-size: 0.8rem;
+                line-height: 1;
+            }
+            
+            .time-display {
                 font-size: 1.1rem;
-                margin-bottom: 1px;
-                line-height: 1.1;
+                line-height: 1.2;
+            }
+            
+            .date-display {
+                font-size: 0.8rem;
+                line-height: 1;
+            }
+            
+            .language-selector {
+                padding: 4px;
+                gap: 4px;
+            }
+            
+            .lang-btn {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+                min-width: 36px;
+            }
+            
+            .welcome-section {
+                margin-bottom: 15px;
+                flex-shrink: 0;
+                height: auto;
+                max-height: 70px;
+            }
+            
+            .welcome-title {
+                font-size: 1.6rem;
+                margin-bottom: 5px;
+                line-height: 1.2;
             }
             
             .welcome-subtitle {
-                font-size: 0.75rem;
-                line-height: 1.1;
+                font-size: 0.95rem;
+                line-height: 1.2;
             }
             
             .main-content {
@@ -521,62 +528,64 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                 flex-direction: column;
                 justify-content: center;
                 min-height: 0;
-                max-height: 600px;
+                padding: 0;
             }
             
             .services-grid {
-                margin-bottom: 2px;
+                margin-bottom: 15px;
                 flex-shrink: 0;
+                gap: 15px;
             }
             
             .services-grid.count-4 {
-                grid-template-columns: repeat(4, 1fr);
-                grid-template-rows: 1fr;
-                max-width: 1350px;
-                gap: 6px;
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(2, 1fr);
+                max-width: 900px;
+                width: 100%;
                 margin: 0 auto;
-                height: 380px;
-                max-height: 380px;
+                height: auto;
+                max-height: none;
             }
             
             .service-card {
-                min-height: 90px;
-                max-height: 90px;
-                padding: 6px;
+                min-height: 200px;
+                max-height: 200px;
+                padding: 20px;
                 display: flex;
                 flex-direction: column;
-                justify-content: space-between;
+                justify-content: center;
                 overflow: hidden;
-                border-radius: 8px;
+                border-radius: 12px;
+                aspect-ratio: 16/9;
             }
             
             .service-icon {
-                width: 28px;
-                height: 28px;
-                font-size: 14px;
-                margin: 0 auto 2px auto;
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+                margin: 0 auto 12px auto;
                 flex-shrink: 0;
-                border-radius: 8px;
+                border-radius: 12px;
             }
             
             .queue-number {
-                font-size: 0.9rem;
-                margin-bottom: 1px;
+                font-size: 1.8rem;
+                margin-bottom: 8px;
                 line-height: 1;
                 flex-shrink: 0;
             }
             
             .service-name {
-                font-size: 0.65rem;
-                margin-bottom: 2px;
-                line-height: 1;
+                font-size: 1.1rem;
+                margin-bottom: 12px;
+                line-height: 1.2;
                 flex-shrink: 0;
                 text-align: center;
             }
             
             .service-metrics {
                 margin-top: auto;
-                gap: 2px;
+                gap: 10px;
                 flex-shrink: 0;
             }
             
@@ -587,42 +596,71 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
             
             .metric-value {
-                font-size: 0.7rem;
+                font-size: 1.3rem;
                 line-height: 1;
                 display: block;
+                font-weight: 600;
             }
             
             .metric-label {
-                font-size: 0.45rem;
-                margin-top: 1px;
+                font-size: 0.7rem;
+                margin-top: 4px;
                 line-height: 1;
                 text-transform: uppercase;
             }
             
             .instructions {
-                font-size: 0.6rem;
-                margin-bottom: 2px;
+                font-size: 0.9rem;
+                margin-bottom: 10px;
                 flex-shrink: 0;
-                line-height: 1.1;
+                line-height: 1.2;
             }
             
             .kiosk-footer {
                 margin-top: auto;
-                padding: 2px 0;
+                padding: 10px 0;
                 flex-shrink: 0;
-                height: 40px;
-                max-height: 40px;
+                height: auto;
+                max-height: 60px;
             }
             
             .promotion-banner {
-                padding: 4px 8px;
-                margin-bottom: 2px;
-                border-radius: 6px;
+                padding: 8px 16px;
+                margin-bottom: 0;
+                border-radius: 8px;
+                display: none; /* Hide on small screens to save space */
             }
             
             .promotion-text {
-                font-size: 0.6rem;
-                line-height: 1.1;
+                font-size: 0.8rem;
+                line-height: 1.2;
+            }
+            
+            /* Success modal adjustments */
+            .print-success {
+                padding: 30px;
+                max-width: 350px;
+            }
+            
+            .success-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+                margin-bottom: 15px;
+            }
+            
+            .success-title {
+                font-size: 1.3rem;
+                margin-bottom: 6px;
+            }
+            
+            .success-ticket {
+                font-size: 2rem;
+                margin-bottom: 12px;
+            }
+            
+            .success-message {
+                font-size: 0.95rem;
             }
         }
 
@@ -932,28 +970,52 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             setInterval(loadServicesFromServer, 5000);
         }
 
-        // Load services from server
+        // Load services from server with real queue data
         async function loadServicesFromServer() {
             try {
-                // Try to load from server
-                const response = await fetch(`${SERVER_URL}/api/services`);
-                if (response.ok) {
-                    const serverServices = await response.json();
+                // Load services data
+                const servicesResponse = await fetch(`${SERVER_URL}/api/services`);
+                
+                // Load queue status for all services
+                const queueResponse = await fetch(`${SERVER_URL}/api/queue`);
+                
+                if (servicesResponse.ok && queueResponse.ok) {
+                    const services = await servicesResponse.json();
+                    const queueData = await queueResponse.json();
                     
-                    // Merge server data with local config
-                    if (Array.isArray(serverServices) && serverServices.length > 0) {
-                        kioskConfig.services = kioskConfig.services.map((localService, index) => {
-                            const serverService = serverServices.find(s => s.id === localService.id) || serverServices[index];
-                            if (serverService) {
-                                return {
-                                    ...localService,
-                                    currentNumber: serverService.current_number || localService.currentNumber,
-                                    queueCount: serverService.queue_count || 0,
-                                    estimatedWait: serverService.estimated_wait || 5,
-                                    realWait: serverService.real_wait || serverService.estimated_wait || 5
-                                };
-                            }
-                            return localService;
+                    // Update services with real data
+                    if (Array.isArray(services) && services.length > 0) {
+                        kioskConfig.services = services.map((service, index) => {
+                            // Find queue data for this service
+                            const serviceQueue = queueData.find(q => q.service_id === service.id);
+                            
+                            // Calculate real wait time based on waiting count and average service time
+                            const waitingCount = serviceQueue?.waiting_count || 0;
+                            const avgServiceTime = 3; // Default 3 minutes per customer
+                            const estimatedWait = Math.max(1, waitingCount * avgServiceTime);
+                            
+                            return {
+                                id: service.id,
+                                name: {
+                                    en: service.name || `Service ${service.prefix}`,
+                                    th: service.name || `บริการ ${service.prefix}`,
+                                    hi: service.name || `सेवा ${service.prefix}`
+                                },
+                                description: {
+                                    en: service.description || `${service.name} services`,
+                                    th: service.description || `บริการ ${service.name}`,
+                                    hi: service.description || `${service.name} सेवाएं`
+                                },
+                                prefix: service.prefix,
+                                type: getServiceType(service.prefix),
+                                color: getServiceColor(service.prefix),
+                                icon: getServiceIcon(service.prefix),
+                                isActive: service.is_active,
+                                currentNumber: service.current_number || `${service.prefix}001`,
+                                queueCount: waitingCount,
+                                estimatedWait: estimatedWait,
+                                realWait: estimatedWait // For now, same as estimated
+                            };
                         });
                         
                         if (!isIssuing) {
@@ -961,11 +1023,83 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                             updateLanguage(currentLanguage);
                         }
                     }
+                } else {
+                    // If can't reach server, load just queue status for default services
+                    await loadQueueStatus();
                 }
             } catch (error) {
                 console.error('Error loading services from server:', error);
-                // Continue with local data
+                // Try to at least get queue status
+                await loadQueueStatus();
             }
+        }
+        
+        // Load just queue status for existing services
+        async function loadQueueStatus() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/queue`);
+                if (response.ok) {
+                    const queueData = await response.json();
+                    
+                    // Update existing services with queue data
+                    kioskConfig.services.forEach(service => {
+                        const serviceQueue = queueData.find(q => q.service_id === service.id);
+                        if (serviceQueue) {
+                            service.queueCount = serviceQueue.waiting_count || 0;
+                            service.currentNumber = serviceQueue.current_number || `${service.prefix}001`;
+                            
+                            // Calculate wait time
+                            const waitingCount = serviceQueue.waiting_count || 0;
+                            const avgServiceTime = 3; // minutes
+                            service.estimatedWait = Math.max(1, waitingCount * avgServiceTime);
+                            service.realWait = service.estimatedWait;
+                        } else {
+                            // No queue data - show zeros
+                            service.queueCount = 0;
+                            service.estimatedWait = 0;
+                            service.realWait = 0;
+                        }
+                    });
+                    
+                    if (!isIssuing) {
+                        renderServices();
+                        updateLanguage(currentLanguage);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading queue status:', error);
+            }
+        }
+        
+        // Helper functions to map service types
+        function getServiceType(prefix) {
+            const typeMap = {
+                'A': 'general',
+                'B': 'accounts',
+                'V': 'vip',
+                'T': 'technical'
+            };
+            return typeMap[prefix] || 'general';
+        }
+        
+        function getServiceColor(prefix) {
+            const colorMap = {
+                'A': '#4CAF50',
+                'B': '#FF9800',
+                'V': '#9C27B0',
+                'T': '#2196F3'
+            };
+            return colorMap[prefix] || '#4CAF50';
+        }
+        
+        function getServiceIcon(prefix) {
+            const iconMap = {
+                'A': '🏢',
+                'B': '💳',
+                'V': '⭐',
+                'T': '🔧'
+            };
+            return iconMap[prefix] || '🏢';
         }
 
         // Load global language settings
