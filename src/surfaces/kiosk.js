@@ -225,43 +225,10 @@ async function issueKioskTicket(serviceId, language = 'en', deviceInfo = {}, req
             // Commit transaction first
             await db.run('COMMIT');
 
-            // PRINT TICKET TO BACKGROUND PRINT SERVICE ON PORT 3001
-            try {
-                // Call the background print service directly (same as Debug Console)
-                const printerResponse = await fetch(`http://localhost:3001/print`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        ticketNumber: ticketNumber,
-                        serviceName: service.name,
-                        queuePosition: queueCount.count + 1,
-                        estimatedWait: estimatedWait,
-                        timestamp: new Date().toISOString(),
-                        language: language
-                    })
-                });
-
-                if (printerResponse.ok) {
-                    console.log(`✅ Ticket ${ticketNumber} printed successfully via background service`);
-                    
-                    // Mark as printed in database
-                    await db.run(`
-                        UPDATE tickets 
-                        SET printed = 1, printed_at = datetime('now')
-                        WHERE id = ?
-                    `, [ticketId]);
-                } else {
-                    const errorText = await printerResponse.text();
-                    console.error(`❌ Print service error for ticket ${ticketNumber}:`, errorText);
-                    // Still return success - ticket was created, just printing failed
-                }
-            } catch (printerError) {
-                console.error(`❌ Failed to reach print service for ticket ${ticketNumber}:`, printerError.message);
-                // Still return success - ticket was created, just printing failed
-            }
+            // NOTE: Printing is handled by the client-side kiosk interface
+            // The VM server cannot directly reach the Bangkok printer
+            // The kiosk HTML will call the local print service at http://localhost:3001
+            console.log(`📝 Ticket ${ticketNumber} created - client will handle printing`);
 
             // Emit real-time update
             const io = req && req.app ? req.app.get('io') : null;
