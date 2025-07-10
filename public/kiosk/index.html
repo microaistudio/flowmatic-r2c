@@ -666,27 +666,6 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
         }
 
-        /* Offline Indicator */
-        .offline-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #f44336;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            opacity: 0;
-            transform: translateY(-20px);
-            transition: all 0.3s ease;
-        }
-
-        .offline-indicator.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
         /* Print Success Modal */
         .print-success {
             position: fixed;
@@ -799,11 +778,6 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
                 </div>
             </div>
         </footer>
-    </div>
-
-    <!-- Offline Indicator -->
-    <div class="offline-indicator" id="offlineIndicator">
-        🔴 System Offline
     </div>
 
     <!-- Print Success Modal -->
@@ -1217,27 +1191,72 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             }
         }
 
-        // FIXED: Print ticket using local print service
+        // FIXED: Print ticket using local print service - Updated to match ticket editor format with better layout
         async function printTicketLocally(ticketNumber, serviceName) {
             try {
                 console.log(`🖨️ Printing ticket ${ticketNumber} to local print service at ${PRINT_SERVICE_URL}`);
                 
-                // Call the local print service
+                // Get the service details for additional info
+                const service = kioskConfig.services.find(s => s.name[currentLanguage] === serviceName);
+                
+                // Format the ticket data with better layout structure
+                const printData = {
+                    // Basic ticket info - matching ticket editor format
+                    number: ticketNumber,                    // Changed from ticketNumber to number
+                    service: serviceName,                    // Changed from serviceName to service
+                    company: 'FLOWMATIC',                    // Add company name
+                    
+                    // Queue information
+                    wait: service ? `${service.estimatedWait} minutes` : '5 minutes',
+                    position: service ? service.queueCount.toString() : '1',
+                    
+                    // Timestamp
+                    created: new Date().toISOString(),
+                    
+                    // Layout preferences for nice formatting
+                    layout: {
+                        style: 'modern',                     // modern, classic, minimal
+                        fontSize: {
+                            company: 16,
+                            number: 32,
+                            service: 14,
+                            details: 10
+                        },
+                        borders: true,
+                        centerAlign: true,
+                        showQueueInfo: true,
+                        showDateTime: true,
+                        showFooter: true,
+                        footerMessage: 'Please wait for your number to be called'
+                    },
+                    
+                    // Multi-language support
+                    language: currentLanguage,
+                    translations: {
+                        waitTime: currentLanguage === 'th' ? 'รอประมาณ' : 
+                                 currentLanguage === 'hi' ? 'प्रतीक्षा समय' : 
+                                 'Est. Wait Time',
+                        position: currentLanguage === 'th' ? 'ลำดับที่' : 
+                                 currentLanguage === 'hi' ? 'स्थिति' : 
+                                 'Position in Queue',
+                        thankYou: currentLanguage === 'th' ? 'ขอบคุณค่ะ/ครับ' : 
+                                 currentLanguage === 'hi' ? 'धन्यवाद' : 
+                                 'Thank you!'
+                    }
+                };
+                
+                console.log('📄 Sending formatted print data:', printData);
+                
                 const response = await fetch(`${PRINT_SERVICE_URL}/print`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        ticketNumber: ticketNumber,
-                        serviceName: serviceName,
-                        timestamp: new Date().toISOString(),
-                        source: 'kiosk'
-                    })
+                    body: JSON.stringify(printData)
                 });
 
                 if (response.ok) {
-                    console.log(`✅ Ticket ${ticketNumber} printed successfully on local printer`);
+                    console.log(`✅ Ticket ${ticketNumber} printed successfully with nice formatting!`);
                 } else {
                     console.error(`❌ Local print failed:`, await response.text());
                 }
@@ -1329,40 +1348,9 @@ Theme: Light-first design (70% light, 20% service colors, 10% interactions)
             });
         }
 
-        // Connection status check
-        function checkConnection() {
-            setInterval(async () => {
-                try {
-                    // Use relative URL for health check
-                    const response = await fetch('/api/health', { 
-                        method: 'GET',
-                        mode: 'cors',
-                        cache: 'no-cache'
-                    });
-                    
-                    const wasOnline = isOnline;
-                    isOnline = response.ok;
-                    
-                    if (wasOnline !== isOnline) {
-                        const indicator = document.getElementById('offlineIndicator');
-                        indicator.classList.toggle('show', !isOnline);
-                    }
-                } catch (error) {
-                    const wasOnline = isOnline;
-                    isOnline = false;
-                    
-                    if (wasOnline !== isOnline) {
-                        const indicator = document.getElementById('offlineIndicator');
-                        indicator.classList.toggle('show', !isOnline);
-                    }
-                }
-            }, 10000);
-        }
-
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', () => {
             initializeKiosk();
-            checkConnection();
         });
     </script>
 </body>
