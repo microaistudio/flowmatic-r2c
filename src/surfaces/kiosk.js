@@ -13,9 +13,6 @@ const path = require('path');
 const router = express.Router();
 const db = require('../database/connection');
 
-// Print service configuration
-const PRINT_SERVICE_URL = process.env.PRINT_SERVICE_URL || 'http://localhost:3001';
-
 // ===================================================================
 // KIOSK CONFIGURATION & SETTINGS
 // ===================================================================
@@ -228,34 +225,27 @@ async function issueKioskTicket(serviceId, language = 'en', deviceInfo = {}, req
             // Commit transaction first
             await db.run('COMMIT');
 
-            // PRINT TICKET TO PRINT SERVICE ON PORT 3001
+            // PRINT TICKET TO BACKGROUND PRINT SERVICE ON PORT 3001
             try {
-                const printPayload = {
-                    ticketNumber: ticketNumber,
-                    serviceName: service.name,
-                    queuePosition: queueCount.count + 1,
-                    estimatedWait: estimatedWait,
-                    timestamp: new Date().toISOString(),
-                    language: language,
-                    servicePrefix: service.prefix,
-                    ticketId: ticketId,
-                    source: 'kiosk'
-                };
-                
-                console.log(`🖨️ Sending to print service at ${PRINT_SERVICE_URL}:`, printPayload);
-                
-                const printerResponse = await fetch(`${PRINT_SERVICE_URL}/print`, {
+                // Call the background print service directly (same as Debug Console)
+                const printerResponse = await fetch(`http://localhost:3001/print`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify(printPayload)
+                    body: JSON.stringify({
+                        ticketNumber: ticketNumber,
+                        serviceName: service.name,
+                        queuePosition: queueCount.count + 1,
+                        estimatedWait: estimatedWait,
+                        timestamp: new Date().toISOString(),
+                        language: language
+                    })
                 });
 
                 if (printerResponse.ok) {
-                    const printResult = await printerResponse.json();
-                    console.log(`✅ Ticket ${ticketNumber} printed successfully:`, printResult);
+                    console.log(`✅ Ticket ${ticketNumber} printed successfully via background service`);
                     
                     // Mark as printed in database
                     await db.run(`
@@ -621,9 +611,9 @@ router.post('/api/test-print', async (req, res) => {
             source: 'kiosk-test'
         };
         
-        console.log(`🖨️ Testing print service at ${PRINT_SERVICE_URL}`);
+        console.log(`🖨️ Testing print service at http://localhost:3001`);
         
-        const response = await fetch(`${PRINT_SERVICE_URL}/print`, {
+        const response = await fetch(`http://localhost:3001/print`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -653,7 +643,7 @@ router.post('/api/test-print', async (req, res) => {
             success: false, 
             error: 'Failed to reach print service',
             message: error.message,
-            printServiceUrl: PRINT_SERVICE_URL
+            printServiceUrl: 'http://localhost:3001'
         });
     }
 });
